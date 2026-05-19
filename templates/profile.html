@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="glass-panel text-center" style="max-width: 400px; margin: 3rem auto;">
+    <div style="width: 80px; height: 80px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; margin: 0 auto 1.5rem; box-shadow: 0 0 20px var(--primary-glow);">
+        👤
+    </div>
+    <h2 class="mb-4">Profile</h2>
+
+    <p style="font-size: 1.1rem; margin-bottom: 0.5rem;"><b>Name:</b> {{ current_user.username }}</p>
+    <p style="font-size: 1.1rem; color: var(--text-muted);"><b>Email:</b> {{ current_user.email }}</p>
+</div>
+
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="glass-panel" style="max-width: 1000px; margin: 0 auto;">
+    <h2 class="text-center mb-4">📦 Orders</h2>
+
+    <div class="grid-cards">
+
+        {% for order in orders %}
+        <div class="card">
+
+            <div class="flex-between mb-2">
+                <h3 class="card-title" style="margin:0;">Order #{{ order.id }}</h3>
+                <span class="badge {{ order.status }}">
+                    {{ order.status }}
+                </span>
+            </div>
+
+            <p class="mb-1"><b>Customer:</b> {{ order.customer.username }} (ID: {{ order.customer_id }})</p>
+            <p class="mb-1"><b>Payment:</b> {{ order.payment_method }}</p>
+            <p class="mb-3"><b>Total:</b> <span class="card-price" style="font-size:1.1rem;">₹ {{ order.total }}</span></p>
+
+            <hr style="border:none; border-top:1px solid var(--card-border); margin:1rem 0;">
+
+            <div class="items" style="background: rgba(0,0,0,0.1); padding: 0.5rem 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                {% for item in order.items %}
+                    <p style="margin-bottom: 0.2rem; font-size: 0.9rem;">{{ item.product.name }} × {{ item.quantity }}</p>
+                {% endfor %}
+            </div>
+
+            {% if order.status == "Pending" %}
+                <div class="text-center mt-auto">
+                    <a href="{{ url_for('update_status', order_id=order.id) }}" class="btn" style="width: 100%;">
+                        Mark as Accepted
+                    </a>
+                </div>
+            {% elif order.status == "Accepted" %}
+                <div class="text-center mt-auto">
+                    <a href="{{ url_for('update_status', order_id=order.id) }}" class="btn btn-secondary" style="width: 100%;">
+                        Mark as Ready
+                    </a>
+                </div>
+            {% elif order.status == "Ready" %}
+                 <div class="text-center mt-auto">
+                    <a href="{{ url_for('update_status', order_id=order.id) }}" class="btn" style="width: 100%; background: var(--success); box-shadow: none;">
+                        Mark as Completed
+                    </a>
+                </div>
+            {% endif %}
+
+        </div>
+        {% endfor %}
+
+    </div>
+</div>
+
+{% endblock %}

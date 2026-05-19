@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="glass-panel" style="max-width: 1200px; margin: 0 auto;">
+    <h2 class="text-center mb-4">🛠 Admin Panel</h2>
+
+    <div class="grid-cards">
+        <div class="card">
+            <h3 class="card-title">Users</h3>
+            <div style="max-height: 300px; overflow-y: auto;">
+                {% for u in users %}
+                <div class="flex-between mb-2" style="background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 8px;">
+                    <span>{{ u.username }}</span>
+                    <span class="badge" style="background: rgba(192, 132, 252, 0.2); color: var(--secondary);">{{ u.role }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">Shops</h3>
+            <div style="max-height: 300px; overflow-y: auto;">
+                {% for s in shops %}
+                <div class="mb-2" style="background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 8px;">
+                    {{ s.name }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">Orders</h3>
+            <div style="max-height: 300px; overflow-y: auto;">
+                {% for o in orders %}
+                <div class="flex-between mb-2" style="background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 8px;">
+                    <span>Order #{{ o.id }}</span>
+                    <span style="color: var(--primary); font-weight: 600;">₹{{ o.total }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

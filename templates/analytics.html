@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="glass-panel" style="max-width: 800px; margin: 0 auto;">
+    <h2 class="text-center mb-4">📊 Analytics</h2>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ total_orders }}</div>
+            <div class="stat-label">Total Orders</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">₹{{ revenue }}</div>
+            <div class="stat-label">Total Revenue</div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

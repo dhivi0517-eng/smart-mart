@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Your Cart</h2>
+
+<div class="glass-panel" style="max-width: 800px; margin: 0 auto;">
+    {% if items %}
+        <div class="grid-cards mb-4">
+        {% for item in items %}
+        <div class="card flex-between" style="flex-direction:row; align-items:center; padding: 1rem;">
+            <div>
+                <h4 style="margin-bottom:0;">{{ item.product.name }}</h4>
+                <small class="text-muted">Qty: {{ item.quantity }}</small>
+            </div>
+            <div style="font-weight:700; color:var(--primary);">₹ {{ item.subtotal }}</div>
+        </div>
+        {% endfor %}
+        </div>
+        
+        <div class="flex-between mb-4" style="padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 12px;">
+            <h3 style="margin:0;">Total:</h3>
+            <h3 style="margin:0; color:var(--primary);">₹ {{ total }}</h3>
+        </div>
+
+        <form method="POST" action="{{ url_for('place_order') }}">
+            <div class="form-group">
+                <label>Select Payment Method:</label>
+                <select name="payment" required>
+                    <option value="UPI">UPI</option>
+                    <option value="Cash on Pickup">Cash on Pickup</option>
+                </select>
+            </div>
+            <button class="btn" style="width:100%;">Place Order</button>
+        </form>
+    {% else %}
+        <div class="text-center" style="padding: 3rem;">
+            <p>Your cart is empty.</p>
+            <a href="{{ url_for('shop_list') }}" class="btn mt-2">Browse Shops</a>
+        </div>
+    {% endif %}
+</div>
+
+{% if recommendations %}
+<div class="recommendation-section" style="max-width: 800px; margin: 3rem auto;">
+    <div class="recommendation-header">
+        <h3>🔗 Frequently Bought Together</h3>
+    </div>
+    <div class="recommendation-grid">
+        {% for r in recommendations %}
+        <div class="recommendation-card">
+            {% if r.image %}
+            <img src="{{ url_for('static', filename='uploads/' + r.image) }}" class="recommendation-card-img">
+            {% endif %}
+            <h4 class="recommendation-card-title">{{ r.name }}</h4>
+            <div class="recommendation-card-price">₹ {{ r.price }}</div>
+            <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" class="recommendation-form-container" style="display:flex; gap:0.5rem;">
+                <input type="number" name="quantity" value="1" min="0.01" step="any" required style="width: 70px; padding:0.4rem;">
+                <button type="submit" class="btn" style="flex:1; padding:0.4rem;">Add</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

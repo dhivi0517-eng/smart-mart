@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="glass-panel hero">
+    <h1>Welcome to MiniMartPro</h1>
+    <p>Your Smart Multi-Store Shopping Platform</p>
+
+    <div class="hero-buttons mt-4">
+        <a href="{{ url_for('login') }}" class="btn">Login</a>
+        <a href="{{ url_for('register') }}" class="btn btn-secondary" style="margin-left: 1rem;">Register</a>
+    </div>
+</div>
+
+{% endblock %}

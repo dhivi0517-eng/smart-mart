@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Select Shop</h2>
+
+<form action="{{ url_for('shop_list') }}" method="GET" class="form-group flex-between" style="max-width: 600px; margin: 0 auto 2rem;">
+    <input type="text" name="q" placeholder="Search shops..." value="{{ search_query or '' }}" style="flex: 1; margin-right: 1rem;">
+    <button type="submit" class="btn">Search</button>
+</form>
+
+<div class="grid-cards">
+{% for shop in shops %}
+<div class="card">
+    <div class="flex-between mb-2">
+        <h3 class="card-title" style="margin-bottom: 0;">{{ shop.name }}</h3>
+        <span class="badge rating-badge">⭐️ {{ shop.average_rating }}</span>
+    </div>
+    <p class="mb-2">{{ shop.address }}</p>
+    <p class="mb-3"><b>Code:</b> <span class="badge Accepted">{{ shop.shop_code }}</span></p>
+    <a class="btn" href="{{ url_for('shop_products', shop_id=shop.id) }}">Enter Shop</a>
+</div>
+{% endfor %}
+</div>
+{% endblock %}

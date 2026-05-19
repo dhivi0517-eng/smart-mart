@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="glass-panel" style="max-width: 1000px; margin: 0 auto;">
+
+    <div class="flex-between mb-4">
+        <h2>{{ shop.name }} Dashboard</h2>
+        <a class="btn" href="{{ url_for('add_product') }}">+ Add Product</a>
+    </div>
+
+    <h3 class="mb-3">Your Products</h3>
+
+    <div class="table-responsive">
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Image</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>
+                        {% if product.image %}
+                        <img src="{{ url_for('static', filename='uploads/' + product.image) }}" class="card-img" style="width:60px; height:60px; margin-bottom:0;">
+                        {% endif %}
+                    </td>
+                    <td style="font-weight:500;">{{ product.name }}</td>
+                    <td style="color:var(--primary); font-weight:600;">₹ {{ product.price }}</td>
+                    <td>{{ product.stock }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+    </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="glass-panel" style="max-width: 450px; width: 100%; margin: 2rem auto;">
+    <h2 class="text-center mb-2">Verify Your Email</h2>
+    <p class="text-center text-muted mb-4">We've sent a 6-digit OTP to <b>{{ email }}</b></p>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label>Enter OTP</label>
+            <input type="text" name="otp" placeholder="123456" required maxlength="6" style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem;">
+        </div>
+        
+        <button class="btn mt-2" style="width: 100%;">Verify OTP</button>
+    </form>
+    
+    <p class="text-center mt-3">
+        <small class="text-muted">OTP is valid for 10 minutes.</small>
+    </p>
+</div>
+
+{% endblock %}
