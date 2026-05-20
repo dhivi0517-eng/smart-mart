@@ -595,12 +595,15 @@ def api_chat():
 
 # ================= INIT =================
 with app.app_context():
-    db.create_all()
-    try:
-        recommender.train_models()
-        print("ML Recommender models trained successfully.")
-    except Exception as e:
-        print(f"Error training ML models: {e}")
+    if app.config.get('SQLALCHEMY_DATABASE_URI'):
+        try:
+            db.create_all()
+            recommender.train_models()
+            print("Database initialized and ML Recommender models trained successfully.")
+        except Exception as e:
+            print(f"Error during initialization: {e}")
+    else:
+        print("Warning: SQLALCHEMY_DATABASE_URI is not set. Database initialization skipped.")
 
 # Vercel requires app to be exported, which it is.
 # app.run should only execute locally.
