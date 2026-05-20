@@ -136,50 +136,67 @@ def index():
 # ================= REGISTER =================
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-
     if request.method == 'POST':
+        try:
+            email = request.form.get('email')
+            username = request.form.get('username')
+            password = request.form.get('password')
+            role = request.form.get('role')
 
-        if User.query.filter_by(email=request.form['email']).first():
-            flash("Email already exists ❌")
-            return redirect(url_for('register'))
+            if not email or not username or not password or not role:
+                flash("Missing required fields ❌")
+                return redirect(url_for('register'))
 
-        hashed_password = generate_password_hash(request.form['password'])
+            if User.query.filter_by(email=email).first():
+                flash("Email already exists ❌")
+                return redirect(url_for('register'))
 
-        # Generate OTP
-        otp = str(random.randint(100000, 999999))
-        otp_expiry = datetime.datetime.now() + datetime.timedelta(minutes=10)
+            hashed_password = generate_password_hash(password)
 
-        user = User(
-            username=request.form['username'],
-            email=request.form['email'],
-            password=hashed_password,
-            role=request.form['role'],
-            otp=otp,
-            otp_expiry=otp_expiry
-        )
+            # Generate OTP
+            otp = str(random.randint(100000, 999999))
+            otp_expiry = datetime.datetime.now() + datetime.timedelta(minutes=10)
 
-        db.session.add(user)
-        db.session.commit()
-
-        if user.role == "owner":
-            shop = Shop(
-                name=request.form['shop_name'],
-                address=request.form['shop_address'],
-                owner_id=user.id
+            user = User(
+                username=username,
+                email=email,
+                password=hashed_password,
+                role=role,
+                otp=otp,
+                otp_expiry=otp_expiry
             )
-            db.session.add(shop)
+
+            db.session.add(user)
             db.session.commit()
 
-        # Send OTP via Email
-        try:
-            msg = Message("Verify Your Email - MiniMartPro", recipients=[user.email])
-            msg.body = f"Hello {user.username},\n\nYour OTP for email verification is: {otp}\nIt is valid for 10 minutes.\n\nThank you,\nMiniMartPro Team"
-            mail.send(msg)
-            flash("OTP sent to your email. Please verify ✅")
-        except Exception as e:
-            flash(f"Error sending email: {e}. Please contact support ❌")
+            if user.role == "owner":
+                shop_name = request.form.get('shop_name')
+                shop_address = request.form.get('shop_address')
+                
+                shop = Shop(
+                    name=shop_name or "My Shop",
+                    address=shop_address or "",
+                    owner_id=user.id
+                )
+                db.session.add(shop)
+                db.session.commit()
 
-        return redirect(url_for('verify_email', email=user.email))
+            # Send OTP via Email
+            try:
+                msg = Message("Verify Your Email - MiniMartPro", recipients=[user.email])
+                msg.body = f"Hello {user.username},\n\nYour OTP for email verification is: {otp}\nIt is valid for 10 minutes.\n\nThank you,\nMiniMartPro Team"
+                mail.send(msg)
+                flash("OTP sent to your email. Please verify ✅")
+            except Exception as mail_err:
+                print("ERROR: Mail delivery failed:", str(mail_err))
+                flash("Registered successfully, but failed to send verification email. ❌")
+
+            return redirect(url_for('verify_email', email=user.email))
+        except Exception as e:
+            db.session.rollback()
+            print("ERROR: Registration failed:", str(e))
+            flash(f"Registration failed: {e} ❌")
+            return redirect(url_for('register'))
 
     return render_template("register.html")
 
@@ -192,26 +209,31 @@ def verify_email():
         return redirect(url_for('register'))
 
     if request.method == 'POST':
-        otp_input = request.form['otp']
-        user = User.query.filter_by(email=email).first()
+        try:
+            otp_input = request.form.get('otp')
+            user = User.query.filter_by(email=email).first()
 
-        if not user:
-            flash("User not found ❌")
-            return redirect(url_for('register'))
+            if not user:
+                flash("User not found ❌")
+                return redirect(url_for('register'))
 
-        if user.is_verified:
-            flash("Already verified ✅")
-            return redirect(url_for('login'))
+            if user.is_verified:
+                flash("Already verified ✅")
+                return redirect(url_for('login'))
 
-        if user.otp == otp_input and user.otp_expiry and user.otp_expiry > datetime.datetime.now():
-            user.is_verified = True
-            user.otp = None
-            user.otp_expiry = None
-            db.session.commit()
-            flash("Email verified successfully! You can now log in ✅")
-            return redirect(url_for('login'))
-        else:
-            flash("Invalid or expired OTP ❌")
+            if user.otp == otp_input and user.otp_expiry and user.otp_expiry > datetime.datetime.now():
+                user.is_verified = True
+                user.otp = None
+                user.otp_expiry = None
+                db.session.commit()
+                flash("Email verified successfully! You can now log in ✅")
+                return redirect(url_for('login'))
+            else:
+                flash("Invalid or expired OTP ❌")
+        except Exception as e:
+            db.session.rollback()
+            print("ERROR: Email verification failed:", str(e))
+            flash(f"Verification error: {e} ❌")
 
     return render_template("verify_email.html", email=email)
 
@@ -219,30 +241,43 @@ def verify_email():
 # ================= LOGIN =================
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-
     if request.method == 'POST':
+        try:
+            email = request.form.get('email')
+            password = request.form.get('password')
 
-        user = User.query.filter_by(email=request.form['email']).first()
+            if not email or not password:
+                flash("Missing email or password ❌")
+                return redirect(url_for('login'))
 
-        if not user:
-            flash("User not found ❌")
+            user = User.query.filter_by(email=email).first()
+
+            if not user:
+                flash("User not found ❌")
+                return redirect(url_for('login'))
+
+            if not check_password_hash(user.password, password):
+                flash("Wrong password ❌")
+                return redirect(url_for('login'))
+
+            if not user.is_verified:
+                flash("Please verify your email first ❌")
+                return redirect(url_for('verify_email', email=user.email))
+
+            login_success = login_user(user)
+            if not login_success:
+                print("ERROR: Flask-Login login_user returned False")
+                flash("Unable to sign in. Please verify your account is active. ❌")
+                return redirect(url_for('login'))
+
+            if user.role == "owner":
+                return redirect(url_for('owner_dashboard'))
+
+            return redirect(url_for('shop_list'))
+        except Exception as e:
+            print("ERROR: Login failed:", str(e))
+            flash(f"Login failed: {e} ❌")
             return redirect(url_for('login'))
-
-        if not check_password_hash(user.password, request.form['password']):
-            flash("Wrong password ❌")
-            return redirect(url_for('login'))
-
-        if not user.is_verified:
-            flash("Please verify your email first ❌")
-            # Resend OTP logic could be added here, but for now we redirect
-            return redirect(url_for('verify_email', email=user.email))
-
-        login_user(user)
-
-        if user.role == "owner":
-            return redirect(url_for('owner_dashboard'))
-
-        return redirect(url_for('shop_list'))
 
     return render_template("login.html")
 
@@ -594,14 +629,29 @@ def api_chat():
     return jsonify(response)
 
 # ================= INIT =================
+def check_and_update_db_schema():
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        return
+    try:
+        from sqlalchemy import text
+        if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
+            with db.engine.begin() as conn:
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;'))
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS otp VARCHAR(6);'))
+                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS otp_expiry TIMESTAMP;'))
+                print("PostgreSQL database columns verified/created successfully.")
+    except Exception as e:
+        print("ERROR: PostgreSQL schema check/update failed:", str(e))
+
 with app.app_context():
     if app.config.get('SQLALCHEMY_DATABASE_URI'):
         try:
             db.create_all()
+            check_and_update_db_schema()
             recommender.train_models()
             print("Database initialized and ML Recommender models trained successfully.")
         except Exception as e:
-            print(f"Error during initialization: {e}")
+            print("ERROR: Database initialization failed:", str(e))
     else:
         print("Warning: SQLALCHEMY_DATABASE_URI is not set. Database initialization skipped.")
 
