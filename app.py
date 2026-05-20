@@ -16,19 +16,37 @@ from chatbot import bot as chatbot
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'multistore_secret')
 
-# Configure database for Vercel (read-only filesystem except /tmp)
-if os.environ.get('VERCEL') == '1':
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:////tmp/minimart.db')
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'mysql+pymysql://root:2005@localhost/minimart')
+# ==========================================
+# DATABASE & ENVIRONMENT CONFIGURATION
+# ==========================================
+# 1. Supabase PostgreSQL Integration:
+# - Locally: Create a '.env' file in the root directory (based on .env.example) and add your connection string.
+#   Example: DATABASE_URL=postgresql://postgres.xxx:password@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+# - For Vercel Deployment: Go to your project settings in the Vercel Dashboard, navigate to "Environment Variables",
+#   and add the DATABASE_URL key with your Supabase Connection String.
+# - How Environment Variables Work: python-dotenv loads the local .env variables during development.
+#   In production, Vercel injects the environment variables securely into os.environ.
 
-# Configure upload folder for Vercel
+database_url = os.environ.get("DATABASE_URL")
+
+# SQLAlchemy requires postgresql:// instead of postgres:// for PostgreSQL URIs
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+
+# ==========================================
+# FILE UPLOADS CONFIGURATION FOR SERVERLESS
+# ==========================================
+# Serverless platforms like Vercel have a read-only filesystem, except for the '/tmp' directory.
+# This configuration dynamically assigns the upload directory to '/tmp/uploads' on Vercel
+# to prevent "ReadOnlyFileSystem" 500 errors when users upload product images.
 if os.environ.get('VERCEL') == '1':
     app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
 else:
     app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
-# Ensure upload folder exists
+# Ensure the upload directory is automatically created
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 
