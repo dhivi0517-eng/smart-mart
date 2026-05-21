@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MiniMartPro</title>
 
     <!-- CSS LINK -->
@@ -25,8 +26,15 @@
         </div>
     </div>
 
+    <!-- HAMBURGER BUTTON -->
+    <button class="nav-toggle" id="navToggleBtn" aria-label="Toggle Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
     <!-- RIGHT SIDE -->
-    <div class="nav-right">
+    <div class="nav-right" id="navRightMenu">
 
         {% if current_user.is_authenticated %}
 
@@ -93,6 +101,36 @@
 </div>
 
 <script>
+    // MOBILE NAVBAR TOGGLE
+    const navToggleBtn = document.getElementById('navToggleBtn');
+    const navRightMenu = document.getElementById('navRightMenu');
+
+    if (navToggleBtn && navRightMenu) {
+        navToggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            navToggleBtn.classList.toggle('active');
+            navRightMenu.classList.toggle('active');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!navRightMenu.contains(e.target) && !navToggleBtn.contains(e.target)) {
+                navToggleBtn.classList.remove('active');
+                navRightMenu.classList.remove('active');
+            }
+        });
+
+        // Close menu when a link inside is clicked
+        const navLinks = navRightMenu.querySelectorAll('a');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                navToggleBtn.classList.remove('active');
+                navRightMenu.classList.remove('active');
+            });
+        });
+    }
+
+    // AI CHAT WIDGET SCRIPT
     const chatToggleBtn = document.getElementById('chatToggleBtn');
     const closeChatBtn = document.getElementById('closeChatBtn');
     const chatWindow = document.getElementById('chatWindow');

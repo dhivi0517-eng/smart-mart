@@ -129,6 +129,41 @@ a:hover {
     z-index: 2000;
 }
 
+/* Hamburger toggle styling */
+.nav-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 24px;
+    height: 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 2001;
+    padding: 0;
+}
+
+.nav-toggle span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background-color: var(--text-main);
+    border-radius: 2px;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.nav-toggle.active span:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+}
+
+.nav-toggle.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.nav-toggle.active span:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+}
+
 .nav-left {
     display: flex;
     align-items: center;
@@ -298,7 +333,7 @@ select option {
 ========================================= */
 .grid-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 1.5rem;
     margin-top: 1.5rem;
 }
@@ -817,4 +852,247 @@ tr:hover td {
 @keyframes bounce {
     0%, 80%, 100% { transform: scale(0); }
     40% { transform: scale(1); }
+}
+
+/* =========================================
+   GLOBAL RESPONSIVE IMPROVEMENTS
+========================================= */
+
+/* Recommendation section spans full width in any grid */
+.grid-cards .recommendation-section {
+    grid-column: 1 / -1;
+}
+
+/* Prevent text overflow and word wrapping issues */
+h1, h2, h3, h4, h5, h6, p, a, span, td, th {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* =========================================
+   MEDIA QUERIES (RESPONSIVE STYLES)
+========================================= */
+
+/* Breakpoint 1200px (Large Desktops / Laptops) */
+@media (max-width: 1200px) {
+    .container {
+        max-width: 95%;
+        padding: 2rem 1rem;
+    }
+}
+
+/* Breakpoint 992px (Laptops & Large Tablets) */
+@media (max-width: 992px) {
+    .grid-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .hero h1 {
+        font-size: 3rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Breakpoint 768px (Tablets & Mobile Landscape) */
+@media (max-width: 768px) {
+    /* Navbar Hamburger Menu */
+    .nav-toggle {
+        display: flex;
+    }
+    
+    .nav-right {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 280px;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border-left: 1px solid var(--card-border);
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+        padding: 6rem 2rem 2rem 2rem;
+        gap: 1.25rem;
+        z-index: 1999;
+        transform: translateX(100%);
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .nav-right.active {
+        transform: translateX(0);
+    }
+    
+    .nav-right a {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 0.8rem 1.2rem;
+        font-size: 1.05rem;
+        border-radius: 12px;
+    }
+    
+    /* Layout and Containers */
+    .container {
+        padding: 1.5rem 1rem;
+    }
+    
+    .glass-panel {
+        padding: 1.5rem;
+        border-radius: 18px;
+    }
+    
+    /* Cards Grid (2 per row on tablet) */
+    .grid-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+    }
+    
+    .grid-cards .recommendation-section {
+        grid-column: span 2;
+    }
+    
+    /* Typography */
+    h1 { font-size: 2rem; }
+    h2 { font-size: 1.6rem; }
+    h3 { font-size: 1.3rem; }
+    .hero h1 { font-size: 2.25rem; }
+    .hero p { font-size: 1.1rem; }
+    
+    /* Forms & Buttons */
+    .hero-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+        max-width: 320px;
+        margin: 1.5rem auto 0;
+    }
+    
+    .hero-buttons .btn {
+        margin-left: 0 !important;
+    }
+    
+    /* Flex-between overrides on mobile to stack elements vertically */
+    .flex-between {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .flex-between > * {
+        width: 100%;
+    }
+    
+    /* Specific overrides for containers that should NOT wrap or change layout on mobile */
+    .navbar .flex-between, .nav-left, .chat-header, .chat-input-area, .recommendation-header {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: unset !important;
+    }
+    .navbar .flex-between > *, .nav-left > *, .chat-header > *, .chat-input-area > *, .recommendation-header > * {
+        width: auto !important;
+    }
+    .chat-input-area input {
+        flex: 1 !important;
+        width: auto !important;
+    }
+    
+    /* Tables scroll */
+    .table-responsive table {
+        min-width: 600px;
+    }
+    
+    /* Card flex layout override */
+    .card.flex-between {
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+    .card.flex-between > * {
+        width: auto !important;
+    }
+    
+    /* Ratings rating-form override */
+    .rating-form.flex-between {
+        flex-direction: row !important;
+        align-items: center !important;
+    }
+    .rating-form.flex-between > * {
+        width: auto !important;
+    }
+}
+
+/* Breakpoint 576px (Mobile Phones) */
+@media (max-width: 576px) {
+    /* Cards Grid (1 per row on mobile) */
+    .grid-cards {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .grid-cards .recommendation-section {
+        grid-column: 1 / -1;
+        padding: 1.25rem;
+    }
+    
+    .recommendation-grid {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+    
+    /* Chat Widget on Mobile */
+    .chat-widget {
+        bottom: 20px;
+        right: 20px;
+        left: 20px;
+        align-items: flex-end;
+    }
+    
+    .chat-toggle {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+    }
+    
+    .chat-window {
+        width: 100%;
+        height: 70vh;
+        max-height: none;
+        bottom: 65px;
+        right: 0;
+    }
+    
+    /* Glass panel padding and forms */
+    .glass-panel {
+        padding: 1.25rem;
+        border-radius: 16px;
+    }
+    
+    .glass-panel form {
+        width: 100%;
+    }
+    
+    /* Typography */
+    h1 { font-size: 1.75rem; }
+    h2 { font-size: 1.4rem; }
+    h3 { font-size: 1.2rem; }
+    .hero h1 { font-size: 1.8rem; }
+    
+    /* Forms fields and selects */
+    input, select, textarea {
+        font-size: 0.95rem;
+        padding: 0.75rem 0.9rem;
+    }
+    
+    /* Ratings rating-form */
+    .rating-form {
+        flex-wrap: wrap;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+    }
 }
