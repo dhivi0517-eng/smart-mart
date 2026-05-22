@@ -3,6 +3,7 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
+import io
 from flask_mail import Mail, Message
 import random
 import datetime
@@ -73,17 +74,40 @@ login_manager.login_view = "login"
 from reportlab.pdfgen import canvas
 
 @app.route('/invoice/<int:order_id>')
+@login_required
 def invoice(order_id):
-    order = Order.query.get(order_id)
+    order = db.session.get(Order, order_id)
+    if not order:
+        flash("Order not found ❌")
+        return redirect(url_for('index'))
 
-    file = f"invoice_{order.id}.pdf"
-    c = canvas.Canvas(file)
+    # Authorization check
+    if current_user.role == 'customer' and order.customer_id != current_user.id:
+        flash("Unauthorized access ❌")
+        return redirect(url_for('my_orders'))
+    elif current_user.role == 'owner':
+        shop = Shop.query.filter_by(owner_id=current_user.id).first()
+        if not shop or order.shop_id != shop.id:
+            flash("Unauthorized access ❌")
+            return redirect(url_for('owner_dashboard'))
+    elif current_user.role not in ['customer', 'owner', 'admin']:
+        flash("Unauthorized access ❌")
+        return redirect(url_for('index'))
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer)
 
     c.drawString(100, 750, f"Order ID: {order.id}")
-    c.drawString(100, 720, f"Total: ₹{order.total}")
+    c.drawString(100, 720, f"Total: INR {order.total}")
 
     c.save()
-    return send_file(file, as_attachment=True)
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=f"invoice_{order.id}.pdf",
+        mimetype='application/pdf'
+    )
 
 @app.route('/profile')
 @login_required
@@ -124,7 +148,7 @@ def admin_dashboard():
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 
 # ================= HOME =================
@@ -380,7 +404,7 @@ def add_product():
 
         if image and image.filename != "":
             filename = secure_filename(image.filename)
-            upload_path = os.path.join(app.root_path, 'static', 'uploads')
+            upload_path = app.config['UPLOAD_FOLDER']
             if not os.path.exists(upload_path):
                 os.makedirs(upload_path)
             image.save(os.path.join(upload_path, filename))
@@ -436,7 +460,7 @@ def cart():
     cart_product_ids = []
 
     for pid, qty in cart.items():
-        product = Product.query.get(int(pid))
+        product = db.session.get(Product, int(pid))
         if not product:
             continue
 
@@ -481,61 +505,81 @@ def place_order():
 
     payment_method = request.form['payment']
 
-    first_product = Product.query.get(int(list(cart.keys())[0]))
+    first_product = db.session.get(Product, int(list(cart.keys())[0]))
+    if not first_product:
+        flash("Invalid product in cart")
+        session.pop('cart', None)
+        return redirect(url_for('shop_list'))
+        
     shop_id = first_product.shop_id
 
-    order = Order(
-        customer_id=current_user.id,
-        shop_id=shop_id,
-        total=0,
-        payment_method=payment_method,
-        status="Pending"
-    )
-    db.session.add(order)
-    db.session.commit()
-
-    total = 0
-
-    for pid, qty in cart.items():
-        product = Product.query.get(int(pid))
-
-        if product.stock < qty:
-            flash(f"Not enough stock for {product.name}")
-            return redirect(url_for('cart'))
-
-        subtotal = product.price * qty
-        total += subtotal
-
-        # Reduce stock
-        product.stock -= qty
-
-        item = OrderItem(
-            order_id=order.id,
-            product_id=product.id,
-            quantity=qty
-        )
-        db.session.add(item)
-
-    order.total = total
-    db.session.commit()
-
-    session.pop('cart', None)
-
-    # Retrain recommender async or synchronously to reflect new order
     try:
-        recommender.train_models()
-    except:
-        pass
+        order = Order(
+            customer_id=current_user.id,
+            shop_id=shop_id,
+            total=0,
+            payment_method=payment_method,
+            status="Pending"
+        )
+        db.session.add(order)
+        db.session.flush()
 
-    flash("Order Placed Successfully")
-    return redirect(url_for('my_orders'))
+        total = 0
+
+        for pid, qty in cart.items():
+            product = db.session.get(Product, int(pid))
+            if not product:
+                raise ValueError(f"Product not found")
+
+            if product.stock < qty:
+                raise ValueError(f"Not enough stock for {product.name}")
+
+            subtotal = product.price * qty
+            total += subtotal
+
+            # Reduce stock
+            product.stock -= qty
+
+            item = OrderItem(
+                order_id=order.id,
+                product_id=product.id,
+                quantity=qty
+            )
+            db.session.add(item)
+
+        order.total = total
+        db.session.commit()
+
+        session.pop('cart', None)
+
+        # Retrain recommender async or synchronously to reflect new order
+        try:
+            recommender.train_models()
+        except:
+            pass
+
+        flash("Order Placed Successfully")
+        return redirect(url_for('my_orders'))
+
+    except ValueError as val_err:
+        db.session.rollback()
+        flash(str(val_err))
+        return redirect(url_for('cart'))
+    except Exception as e:
+        db.session.rollback()
+        print("ERROR: Order placement failed:", str(e))
+        flash("An error occurred while placing order. Please try again.")
+        return redirect(url_for('cart'))
 
 
 # ================= UPDATE STATUS =================
 @app.route('/update_status/<int:order_id>')
 @login_required
 def update_status(order_id):
-    order = Order.query.get(order_id)
+    order = db.session.get(Order, order_id)
+    if not order:
+        flash("Order not found ❌")
+        return redirect(request.referrer)
 
     if order.status == "Pending":
         order.status = "Accepted"
