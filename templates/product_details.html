@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="mb-4">
+    <a href="{{ url_for('shop_products', shop_id=shop.id) if shop else url_for('shop_list') }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+        ← Back to Shop
+    </a>
+</div>
+
+<div class="glass-panel" style="max-width: 900px; margin: 0 auto; padding: 2rem;">
+    <div style="display: grid; grid-template-columns: 1fr; gap: 2rem; align-items: start;">
+        
+        <!-- Large screen grid -->
+        <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 2rem;">
+            
+            <!-- Left Side: Image -->
+            <div style="flex: 1; min-width: 300px; max-width: 100%;">
+                {% if product.image %}
+                <img src="{{ url_for('static', filename='uploads/' + product.image) }}" style="width: 100%; max-height: 400px; object-fit: cover; border-radius: 16px; border: 1px solid var(--card-border); box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+                {% else %}
+                <div style="width: 100%; height: 300px; background: rgba(255,255,255,0.05); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 3rem; color: rgba(255,255,255,0.2); border: 1px dashed var(--card-border);">
+                    📦
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Side: Product Details & Order Form -->
+            <div style="flex: 1.2; min-width: 300px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div class="flex-between mb-2" style="align-items: center;">
+                        <h2 style="margin: 0; font-size: 2rem; font-weight: 700; color: white;">{{ product.name }}</h2>
+                        <span class="badge rating-badge" style="font-size: 1rem; padding: 0.4rem 0.8rem;">⭐️ {{ product.average_rating }}</span>
+                    </div>
+
+                    {% if shop %}
+                    <p style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                        Sold by: <a href="{{ url_for('shop_products', shop_id=shop.id) }}" style="color: var(--primary); font-weight: 600; text-decoration: none; border-bottom: 1px dashed var(--primary);">{{ shop.name }}</a>
+                    </p>
+                    {% endif %}
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <span style="font-size: 2rem; font-weight: 800; color: var(--primary);">₹ {{ product.price }}</span>
+                        <span style="font-size: 1rem; color: var(--text-muted); margin-left: 0.2rem;">/
+                            {% if product.price_unit == 'kg' %}kg
+                            {% elif product.price_unit == 'g' %}gram
+                            {% elif product.price_unit == '100g' %}100g
+                            {% elif product.price_unit == '250g' %}250g
+                            {% elif product.price_unit == '500g' %}500g
+                            {% else %}piece{% endif %}
+                        </span>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 1.2rem; border: 1px solid var(--card-border); margin-bottom: 1.5rem;">
+                        <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: white; font-weight: 600;">Product Description</h4>
+                        <p style="margin: 0; line-height: 1.6; color: rgba(255,255,255,0.85);">{{ product.description }}</p>
+                    </div>
+
+                    <p style="margin-bottom: 1.5rem; font-size: 0.95rem;">
+                        <b>Availability:</b> 
+                        {% if product.stock > 0 %}
+                            <span style="color: var(--success); font-weight: 600;">In Stock ({{ product.stock|format_quantity(product.price_unit) }})</span>
+                        {% else %}
+                            <span style="color: #ff4d4d; font-weight: 600;">Out of Stock</span>
+                        {% endif %}
+                    </p>
+                </div>
+
+                {% if current_user.role == 'customer' and product.stock > 0 %}
+                <div style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--card-border);">
+                    <h4 style="margin-top: 0; margin-bottom: 1rem; color: white;">Order Now</h4>
+                    <form action="{{ url_for('add_to_cart', product_id=product.id) }}" method="POST">
+                        <div style="display: flex; gap: 0.8rem; margin-bottom: 1rem; align-items: center;">
+                            <div style="flex: 1.5;">
+                                <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Quantity</label>
+                                <input type="number" id="quantity-input" name="quantity" value="1" min="0.001" step="any" required style="width: 100%; padding: 0.65rem 1rem; border-radius: 8px;">
+                            </div>
+                            
+                            <div style="flex: 1;">
+                                <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">Unit</label>
+                                {% if product.price_unit == 'piece' %}
+                                    <select name="unit" id="unit-select" required style="width: 100%; padding: 0.65rem; border-radius: 8px;">
+                                        <option value="piece">Piece(s)</option>
+                                    </select>
+                                {% else %}
+                                    <select name="unit" id="unit-select" required style="width: 100%; padding: 0.65rem; border-radius: 8px;">
+                                        <option value="g">Gram (g)</option>
+                                        <option value="kg" selected>Kilogram (kg)</option>
+                                    </select>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Cost Estimation -->
+                        <div style="background: rgba(0,0,0,0.2); padding: 0.8rem 1.2rem; border-radius: 8px; border: 1px dashed var(--card-border); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">Estimated Price:</span>
+                            <span id="live-total" style="font-weight: 700; color: var(--primary); font-size: 1.3rem;">₹ 0.00</span>
+                        </div>
+
+                        <button type="submit" class="btn" style="width: 100%; padding: 0.75rem;">🛒 Add to Cart</button>
+                    </form>
+                </div>
+                {% elif current_user.role == 'owner' and current_user.id == shop.owner_id %}
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn" style="flex: 1; text-align: center; background: var(--primary);">✏️ Edit Product</a>
+                    <form action="{{ url_for('delete_product', product_id=product.id) }}" method="POST" style="flex: 1;" onsubmit="return confirm('Are you sure you want to delete this product?');">
+                        <button type="submit" class="btn btn-secondary" style="width: 100%; background: #ff4d4d; color: white; border-color: #ff4d4d;">🗑️ Delete Product</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+{% if recommendations %}
+<div class="recommendation-section" style="max-width: 900px; margin: 3rem auto 0;">
+    <div class="recommendation-header">
+        <h3>✨ Recommended For You</h3>
+    </div>
+    <div class="recommendation-grid">
+        {% for r in recommendations %}
+        <div class="recommendation-card">
+            {% if r.image %}
+            <img src="{{ url_for('static', filename='uploads/' + r.image) }}" class="recommendation-card-img">
+            {% endif %}
+            <h4 class="recommendation-card-title"><a href="{{ url_for('product_details', product_id=r.id) }}" style="color:white; text-decoration:none;">{{ r.name }}</a></h4>
+            <div class="recommendation-card-price">₹ {{ r.price }}</div>
+            <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" class="recommendation-form-container" style="display:flex; gap:0.5rem;">
+                <input type="number" name="quantity" value="1" min="0.01" step="any" required style="width: 70px; padding:0.4rem;">
+                <button type="submit" class="btn" style="flex:1; padding:0.4rem;">Add</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const qtyInput = document.getElementById("quantity-input");
+        const unitSelect = document.getElementById("unit-select");
+        const totalSpan = document.getElementById("live-total");
+        
+        const price = parseFloat("{{ product.price }}");
+        const priceUnit = "{{ product.price_unit }}";
+
+        function updatePrice() {
+            if (!qtyInput) return;
+            const qty = parseFloat(qtyInput.value) || 0;
+            const unit = unitSelect ? unitSelect.value : 'piece';
+            
+            let grams = 0;
+            let qtyInPriceUnit = qty;
+            
+            if (['kg', 'g', '100g', '250g', '500g'].includes(priceUnit)) {
+                if (unit === 'kg') {
+                    grams = qty * 1000;
+                } else {
+                    grams = qty;
+                }
+                
+                if (priceUnit === 'kg') {
+                    qtyInPriceUnit = grams / 1000;
+                } else if (priceUnit === 'g') {
+                    qtyInPriceUnit = grams;
+                } else if (priceUnit === '100g') {
+                    qtyInPriceUnit = grams / 100;
+                } else if (priceUnit === '250g') {
+                    qtyInPriceUnit = grams / 250;
+                } else if (priceUnit === '500g') {
+                    qtyInPriceUnit = grams / 500;
+                }
+            }
+            
+            const total = price * qtyInPriceUnit;
+            totalSpan.textContent = "₹ " + total.toFixed(2);
+        }
+
+        if (qtyInput) {
+            qtyInput.addEventListener("input", updatePrice);
+        }
+        if (unitSelect) {
+            unitSelect.addEventListener("change", updatePrice);
+        }
+        
+        updatePrice();
+    });
+</script>
+{% endblock %}

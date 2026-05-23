@@ -38,15 +38,35 @@
     </div>
     <div class="recommendation-grid">
         {% for r in recommendations %}
-        <div class="recommendation-card">
-            {% if r.image %}
-            <img src="{{ url_for('static', filename='uploads/' + r.image) }}" class="recommendation-card-img">
-            {% endif %}
-            <h4 class="recommendation-card-title">{{ r.name }}</h4>
-            <div class="recommendation-card-price">₹ {{ r.price }}</div>
-            <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" class="recommendation-form-container" style="display:flex; gap:0.5rem;">
-                <input type="number" name="quantity" value="1" min="0.01" step="any" required style="width: 70px; padding:0.4rem;">
-                <button type="submit" class="btn" style="flex:1; padding:0.4rem;">Add</button>
+        <div class="recommendation-card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+            <div>
+                {% if r.image %}
+                <a href="{{ url_for('product_details', product_id=r.id) }}">
+                    <img src="{{ url_for('static', filename='uploads/' + r.image) }}" class="recommendation-card-img" style="object-fit: cover;">
+                </a>
+                {% endif %}
+                <h4 class="recommendation-card-title">
+                    <a href="{{ url_for('product_details', product_id=r.id) }}" style="color: white; text-decoration: none;">
+                        {{ r.name }}
+                    </a>
+                </h4>
+                <div class="recommendation-card-price" style="font-size: 0.9rem; font-weight: 600;">
+                    ₹ {{ r.price }} / {{ r.price_unit }}
+                </div>
+            </div>
+            <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" class="recommendation-form-container" style="display:flex; gap:0.3rem; margin-top: 0.5rem; flex-wrap: wrap;">
+                <input type="number" name="quantity" value="1" min="0.001" step="any" required style="width: 50px; padding:0.4rem; flex: 1;">
+                {% if r.price_unit == 'piece' %}
+                <select name="unit" required style="padding: 0.4rem; border-radius: 8px; font-size: 0.8rem; flex: 1; min-width: 50px;">
+                    <option value="piece">pcs</option>
+                </select>
+                {% else %}
+                <select name="unit" required style="padding: 0.4rem; border-radius: 8px; font-size: 0.8rem; flex: 1; min-width: 50px;">
+                    <option value="g">g</option>
+                    <option value="kg" selected>kg</option>
+                </select>
+                {% endif %}
+                <button type="submit" class="btn" style="flex:1; padding:0.4rem; font-size: 0.8rem; min-width: 50px;">Add</button>
             </form>
         </div>
         {% endfor %}
@@ -55,37 +75,59 @@
 {% endif %}
 
     {% for p in products %}
-    <div class="card">
+    <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
 
         {% if p.image %}
-        <img src="{{ url_for('static', filename='uploads/' + p.image) }}" class="card-img">
+        <a href="{{ url_for('product_details', product_id=p.id) }}">
+            <img src="{{ url_for('static', filename='uploads/' + p.image) }}" class="card-img" style="object-fit: cover;">
+        </a>
         {% endif %}
 
-        <div class="product-info">
-            <div class="flex-between mb-1">
-                <h3 class="card-title" style="margin: 0;">{{ p.name }}</h3>
-                <span class="badge rating-badge">⭐️ {{ p.average_rating }}</span>
+        <div class="product-info" style="display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1;">
+            <div>
+                <div class="flex-between mb-1" style="align-items: center;">
+                    <h3 class="card-title" style="margin: 0; font-size: 1.2rem;">
+                        <a href="{{ url_for('product_details', product_id=p.id) }}" style="color: white; text-decoration: none;">
+                            {{ p.name }}
+                        </a>
+                    </h3>
+                    <span class="badge rating-badge">⭐️ {{ p.average_rating }}</span>
+                </div>
+                <p style="font-size: 0.85rem; line-height: 1.4; margin-bottom: 0.8rem; color: rgba(255,255,255,0.7);">{{ p.description }}</p>
+                <p class="card-price" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--primary);">
+                    ₹ {{ p.price }} <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400;">/ {{ p.price_unit }}</span>
+                </p>
             </div>
-            <p>{{ p.description }}</p>
-            <p class="card-price">₹ {{ p.price }}</p>
 
-            <form action="{{ url_for('add_to_cart', product_id=p.id) }}" method="POST" style="display:flex; gap:0.5rem; align-items:center; margin-bottom: 0.5rem;">
-                <input type="number" name="quantity" value="1" min="0.01" step="any" required style="width: 80px; padding:0.5rem;">
-                <button type="submit" class="btn" style="flex: 1;">Add</button>
-            </form>
-            
-            {% if current_user.role == 'customer' %}
-            <form action="{{ url_for('rate_product', product_id=p.id) }}" method="POST" style="display:flex; gap:0.5rem; align-items:center;">
-                <select name="rating" style="flex: 1; padding: 0.4rem; font-size: 0.8rem; border-radius: 8px;">
-                    <option value="5">5 ⭐️</option>
-                    <option value="4">4 ⭐️</option>
-                    <option value="3">3 ⭐️</option>
-                    <option value="2">2 ⭐️</option>
-                    <option value="1">1 ⭐️</option>
-                </select>
-                <button type="submit" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Rate</button>
-            </form>
-            {% endif %}
+            <div>
+                <form action="{{ url_for('add_to_cart', product_id=p.id) }}" method="POST" style="display:flex; gap:0.4rem; align-items:center; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                    <input type="number" name="quantity" value="1" min="0.001" step="any" required style="width: 60px; padding:0.5rem; flex: 1.2; min-width: 50px;">
+                    {% if p.price_unit == 'piece' %}
+                    <select name="unit" required style="padding: 0.5rem; border-radius: 8px; flex: 1; min-width: 60px;">
+                        <option value="piece">pcs</option>
+                    </select>
+                    {% else %}
+                    <select name="unit" required style="padding: 0.5rem; border-radius: 8px; flex: 1; min-width: 60px;">
+                        <option value="g">g</option>
+                        <option value="kg" selected>kg</option>
+                    </select>
+                    {% endif %}
+                    <button type="submit" class="btn" style="flex: 1; padding: 0.5rem 1rem; min-width: 60px;">Add</button>
+                </form>
+                
+                {% if current_user.role == 'customer' %}
+                <form action="{{ url_for('rate_product', product_id=p.id) }}" method="POST" style="display:flex; gap:0.4rem; align-items:center; margin-top: 0.5rem;">
+                    <select name="rating" style="flex: 1.5; padding: 0.4rem; font-size: 0.8rem; border-radius: 8px; min-width: 60px;">
+                        <option value="5">5 ⭐️</option>
+                        <option value="4">4 ⭐️</option>
+                        <option value="3">3 ⭐️</option>
+                        <option value="2">2 ⭐️</option>
+                        <option value="1">1 ⭐️</option>
+                    </select>
+                    <button type="submit" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; flex: 1; min-width: 50px;">Rate</button>
+                </form>
+                {% endif %}
+            </div>
         </div>
 
     </div>

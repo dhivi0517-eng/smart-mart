@@ -53,7 +53,7 @@
                     {% for item in o.items %}
                         <p style="margin-bottom: 0.2rem; font-size: 0.9rem;">
                             {{ item.product.name if item.product else "Deleted Product" }}
-                            × {{ item.quantity }}
+                            × {{ item.quantity|format_quantity(item.product.price_unit if item.product else 'piece') }}
                         </p>
                     {% endfor %}
                 </div>

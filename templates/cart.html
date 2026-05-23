@@ -8,8 +8,12 @@
         {% for item in items %}
         <div class="card flex-between" style="flex-direction:row; align-items:center; padding: 1rem;">
             <div>
-                <h4 style="margin-bottom:0;">{{ item.product.name }}</h4>
-                <small class="text-muted">Qty: {{ item.quantity }}</small>
+                <h4 style="margin-bottom:0;">
+                    <a href="{{ url_for('product_details', product_id=item.product.id) }}" style="color: white; text-decoration: none; font-weight: 600;">
+                        {{ item.product.name }}
+                    </a>
+                </h4>
+                <small class="text-muted">Qty: {{ item.quantity|format_quantity(item.product.price_unit) }} (at ₹ {{ item.product.price }} / {{ item.product.price_unit }})</small>
             </div>
             <div style="font-weight:700; color:var(--primary);">₹ {{ item.subtotal }}</div>
         </div>

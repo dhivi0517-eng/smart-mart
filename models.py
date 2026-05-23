@@ -76,6 +76,7 @@ class Product(db.Model):
     name = db.Column(db.String(150), nullable=False)
     description = db.Column(db.String(200))
     price = db.Column(db.Float, nullable=False)
+    price_unit = db.Column(db.String(20), default="piece")
     stock = db.Column(db.Float)  # 🔥 support kg / grams
     image = db.Column(db.String(200))
     shop_id = db.Column(db.Integer, db.ForeignKey('shop.id'))

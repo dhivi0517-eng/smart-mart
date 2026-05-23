@@ -12,11 +12,22 @@
             <input type="text" name="description" placeholder="Description" required>
         </div>
         <div class="form-group">
-            <label>Price</label>
+            <label>Price (₹)</label>
             <input type="number" name="price" placeholder="Price" step="any" min="0" required>
         </div>
         <div class="form-group">
-            <label>Stock</label>
+            <label>Pricing Unit (Rate per)</label>
+            <select name="price_unit" required style="width: 100%; padding: 0.65rem 1rem; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid var(--card-border); color: white;">
+                <option value="piece" selected style="background:#111;">per Piece (pcs)</option>
+                <option value="kg" style="background:#111;">per Kilogram (kg)</option>
+                <option value="g" style="background:#111;">per Gram (g)</option>
+                <option value="100g" style="background:#111;">per 100 Grams (100g)</option>
+                <option value="250g" style="background:#111;">per 250 Grams (250g)</option>
+                <option value="500g" style="background:#111;">per 500 Grams (500g)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Stock (in selected pricing unit)</label>
             <input type="number" name="stock" placeholder="Stock" step="any" min="0" required>
         </div>
         <div class="form-group">

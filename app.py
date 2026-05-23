@@ -18,6 +18,79 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'multistore_secret')
 
 # ==========================================
+# QUANTITY & UNIT UTILITIES
+# ==========================================
+def convert_to_price_unit(quantity, unit, price_unit):
+    try:
+        qty = float(quantity)
+    except (ValueError, TypeError):
+        qty = 1.0
+        
+    if price_unit in ['kg', 'g', '100g', '250g', '500g']:
+        if unit == 'kg':
+            grams = qty * 1000
+        else:
+            grams = qty
+            
+        if price_unit == 'kg':
+            return grams / 1000
+        elif price_unit == 'g':
+            return grams
+        elif price_unit == '100g':
+            return grams / 100
+        elif price_unit == '250g':
+            return grams / 250
+        elif price_unit == '500g':
+            return grams / 500
+    
+    return qty
+
+def format_display_quantity(quantity, price_unit):
+    if quantity is None:
+        return ""
+    try:
+        qty = float(quantity)
+    except (ValueError, TypeError):
+        return str(quantity)
+        
+    if price_unit == 'kg':
+        if qty < 1.0:
+            return f"{int(qty * 1000)} g"
+        else:
+            if qty.is_integer():
+                return f"{int(qty)} kg"
+            return f"{qty} kg"
+    elif price_unit == 'g':
+        if qty.is_integer():
+            return f"{int(qty)} g"
+        return f"{qty} g"
+    elif price_unit == '100g':
+        val = qty * 100
+        if val.is_integer():
+            return f"{int(val)} g"
+        return f"{val} g"
+    elif price_unit == '250g':
+        val = qty * 250
+        if val.is_integer():
+            return f"{int(val)} g"
+        return f"{val} g"
+    elif price_unit == '500g':
+        val = qty * 500
+        if val.is_integer():
+            return f"{int(val)} g"
+        return f"{val} g"
+    elif price_unit == 'piece':
+        if qty.is_integer():
+            return f"{int(qty)} piece{'s' if qty != 1 else ''}"
+        return f"{qty} piece{'s' if qty != 1 else ''}"
+    else:
+        if qty.is_integer():
+            return f"{int(qty)} {price_unit}"
+        return f"{qty} {price_unit}"
+
+app.jinja_env.filters['format_quantity'] = format_display_quantity
+
+# ==========================================
 # DATABASE & ENVIRONMENT CONFIGURATION
 # ==========================================
 # 1. Supabase PostgreSQL Integration:
@@ -414,6 +487,7 @@ def add_product():
                 name=request.form['name'],
                 description=request.form['description'],
                 price=float(request.form['price']),
+                price_unit=request.form.get('price_unit', 'piece'),
                 stock=float(request.form['stock']),
                 image=filename,
                 shop_id=shop.id
@@ -430,23 +504,135 @@ def add_product():
     return render_template("add_product.html")
 
 
-# ================= ADD TO CART =================
+# ================= EDIT PRODUCT =================
+@app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def edit_product(product_id):
+    if current_user.role != "owner":
+        return redirect(url_for('index'))
+
+    product = Product.query.get_or_404(product_id)
+    shop = Shop.query.filter_by(owner_id=current_user.id).first()
+    
+    if not shop or product.shop_id != shop.id:
+        flash("Unauthorized access ❌")
+        return redirect(url_for('owner_dashboard'))
+
+    if request.method == 'POST':
+        image = request.files.get('image')
+        if image and image.filename != "":
+            filename = secure_filename(image.filename)
+            upload_path = app.config['UPLOAD_FOLDER']
+            if not os.path.exists(upload_path):
+                os.makedirs(upload_path)
+            image.save(os.path.join(upload_path, filename))
+            product.image = filename
+
+        try:
+            product.name = request.form['name']
+            product.description = request.form['description']
+            product.price = float(request.form['price'])
+            product.price_unit = request.form.get('price_unit', 'piece')
+            product.stock = float(request.form['stock'])
+            
+            db.session.commit()
+            flash("Product Updated Successfully ✅")
+            return redirect(url_for('owner_dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash("Error updating product. Please check your inputs.")
+
+    return render_template("edit_product.html", product=product)
+
+
+# ================= DELETE PRODUCT =================
+@app.route('/delete_product/<int:product_id>', methods=['POST'])
+@login_required
+def delete_product(product_id):
+    if current_user.role != "owner":
+        return redirect(url_for('index'))
+
+    product = Product.query.get_or_404(product_id)
+    shop = Shop.query.filter_by(owner_id=current_user.id).first()
+    
+    if not shop or product.shop_id != shop.id:
+        flash("Unauthorized access ❌")
+        return redirect(url_for('owner_dashboard'))
+
+    try:
+        # 1. Nullify the product references in OrderItem to maintain order history.
+        OrderItem.query.filter_by(product_id=product.id).update({OrderItem.product_id: None})
+        
+        # 2. Delete ratings for this product.
+        ProductRating.query.filter_by(product_id=product.id).delete()
+        
+        # 3. Delete the product itself.
+        db.session.delete(product)
+        db.session.commit()
+        
+        flash("Product Deleted Successfully ✅")
+    except Exception as e:
+        db.session.rollback()
+        print("ERROR: Product deletion failed:", str(e))
+        flash("Error deleting product. Please try again.")
+
+    return redirect(url_for('owner_dashboard'))
+
+
+# ================= PRODUCT DETAILS =================
+@app.route('/product/<int:product_id>')
+@login_required
+def product_details(product_id):
+    product = Product.query.get_or_404(product_id)
+    
+    recommendations = []
+    if current_user.role == 'customer':
+        try:
+            recommendations = recommender.get_hybrid_recommendations(user_id=current_user.id, limit=4)
+        except:
+            pass
+            
+    return render_template("product_details.html", product=product, shop=product.shop, recommendations=recommendations)
+
+
 @app.route('/add_to_cart/<int:product_id>', methods=['POST'])
 @login_required
 def add_to_cart(product_id):
-    quantity = float(request.form['quantity'])
+    try:
+        quantity = float(request.form['quantity'])
+    except (ValueError, TypeError):
+        flash("Invalid quantity entered ❌")
+        return redirect(request.referrer)
+
+    unit = request.form.get('unit', 'piece')
 
     if quantity <= 0:
         return redirect(request.referrer)
+
+    product = db.session.get(Product, product_id)
+    if not product:
+        flash("Product not found ❌")
+        return redirect(request.referrer)
+
+    # Convert the user quantity to base pricing unit quantity
+    qty_in_price_unit = convert_to_price_unit(quantity, unit, product.price_unit)
 
     if 'cart' not in session:
         session['cart'] = {}
 
     cart = session['cart']
-    cart[str(product_id)] = cart.get(str(product_id), 0) + quantity
-    session['cart'] = cart
+    current_in_cart = float(cart.get(str(product_id), 0.0))
+    total_requested = current_in_cart + qty_in_price_unit
 
-    flash("Added to Cart")
+    if product.stock < total_requested:
+        flash(f"Not enough stock for {product.name}! Available stock: {format_display_quantity(product.stock, product.price_unit)} ❌")
+        return redirect(request.referrer)
+
+    cart[str(product_id)] = total_requested
+    session['cart'] = cart
+    session.modified = True
+
+    flash(f"Added {quantity} {unit} of {product.name} to Cart ✅")
     return redirect(request.referrer)
 
 
@@ -678,14 +864,22 @@ def check_and_update_db_schema():
         return
     try:
         from sqlalchemy import text
-        if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
-            with db.engine.begin() as conn:
+        with db.engine.begin() as conn:
+            # 1. PostgreSQL User table migration
+            if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
                 conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;'))
                 conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS otp VARCHAR(6);'))
                 conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS otp_expiry TIMESTAMP;'))
-                print("PostgreSQL database columns verified/created successfully.")
+                print("PostgreSQL user table columns verified/created successfully.")
+            
+            # 2. Add price_unit column to product table (SQLite and PostgreSQL)
+            try:
+                conn.execute(text("ALTER TABLE product ADD COLUMN price_unit VARCHAR(20) DEFAULT 'piece';"))
+                print("Added column price_unit to product table.")
+            except Exception as col_err:
+                print("Column price_unit may already exist or cannot be added:", str(col_err))
     except Exception as e:
-        print("ERROR: PostgreSQL schema check/update failed:", str(e))
+        print("ERROR: Database schema check/update failed:", str(e))
 
 with app.app_context():
     if app.config.get('SQLALCHEMY_DATABASE_URI'):
