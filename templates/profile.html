@@ -33,8 +33,24 @@
             </div>
 
             <div class="profile-meta">
-                <h1 class="profile-name">{{ current_user.username }}</h1>
-                <p class="profile-username">@{{ current_user.username|lower }}</p>
+                <div class="flex-between" style="align-items:flex-start;">
+                    <div>
+                        <h1 class="profile-name" style="margin:0;">{{ current_user.username }}</h1>
+                        <p class="profile-username">@{{ current_user.username|lower }}</p>
+                    </div>
+                    
+                    <!-- PROFILE COMPLETION METER -->
+                    <div style="width: 200px;" class="mobile-stack">
+                        <div class="flex-between mb-1" style="font-size: 0.75rem; font-weight: 600;">
+                            <span style="color:var(--text-muted);">Profile Completion</span>
+                            <span style="color:var(--primary);">{{ completion_percentage }}%</span>
+                        </div>
+                        <div style="width:100%; height:6px; background:rgba(255,255,255,0.05); border-radius:99px; overflow:hidden; border:1px solid rgba(255,255,255,0.05);">
+                            <div style="width: {{ completion_percentage }}%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); box-shadow: 0 0 8px var(--primary-glow); border-radius:99px;"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="profile-details-row">
                     {% if customization.location %}
                         <span>📍 {{ customization.location }}</span>
@@ -93,8 +109,8 @@
                     <span class="stat-lbl">Total Orders</span>
                 </div>
                 <div class="stat-box glass-panel">
-                    <span class="stat-number">{{ recommendations|length }}</span>
-                    <span class="stat-lbl">Favorite / Wishlist</span>
+                    <span class="stat-number">{{ wishlisted_products|length }}</span>
+                    <span class="stat-lbl">Saved Wishlist</span>
                 </div>
             </div>
 
@@ -103,12 +119,13 @@
                 <div class="tabs-header">
                     <button class="tab-btn active" onclick="switchTab('feed-tab', this)">📢 Connected Feed</button>
                     <button class="tab-btn" onclick="switchTab('purchases-tab', this)">🛍️ Recent Purchases</button>
+                    <button class="tab-btn" onclick="switchTab('wishlist-tab', this)">💖 My Wishlist ({{ wishlisted_products|length }})</button>
                     <button class="tab-btn" onclick="switchTab('favorites-tab', this)">✨ Personalized Picks</button>
                 </div>
 
                 <div class="tab-contents mt-3">
                     
-                    <!-- TAB 1: CONNECTED SHops FEED -->
+                    <!-- TAB 1: CONNECTED SHOPS FEED -->
                     <div id="feed-tab" class="tab-pane active">
                         {% if feed_items %}
                             <div class="timeline-feed">
@@ -186,7 +203,7 @@
                                         <div class="flex-between">
                                             <div>
                                                 <h4 style="margin:0;">Order #{{ o.id }}</h4>
-                                                <small style="color:var(--text-muted);">From Shop Code: {{ o.shop.shop_code }}</small>
+                                                <small style="color:var(--text-muted);">From Shop: {{ o.shop.name }}</small>
                                             </div>
                                             <span class="badge {{ o.status }}">{{ o.status }}</span>
                                         </div>
@@ -207,7 +224,52 @@
                         {% endif %}
                     </div>
 
-                    <!-- TAB 3: WISHLIST / PERSONALIZED PICKS -->
+                    <!-- TAB 3: REAL WISHLIST / SAVED PRODUCTS -->
+                    <div id="wishlist-tab" class="tab-pane">
+                        {% if wishlisted_products %}
+                            <div class="wishlist-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.25rem;">
+                                {% for r in wishlisted_products %}
+                                    <div class="card product-marketplace-card">
+                                        <div class="product-marketplace-img-box">
+                                            {% if r.image %}
+                                                <img src="{{ url_for('static', filename='uploads/' + r.image) }}" alt="{{ r.name }}" class="card-img" style="margin-bottom:0; height:120px;">
+                                            {% endif %}
+                                            <span class="product-marketplace-rating">⭐️ {{ r.average_rating }}</span>
+                                        </div>
+
+                                        <div class="product-info" style="padding-top:0.5rem;">
+                                            <h4 style="margin:0; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                <a href="{{ url_for('product_details', product_id=r.id) }}" style="color:#fff;">{{ r.name }}</a>
+                                            </h4>
+                                            <small style="color:var(--text-muted); display:block; margin-top:0.15rem;">Store: {{ r.shop.name }}</small>
+                                            
+                                            <div class="flex-between mt-2 pt-2" style="border-top:1px solid rgba(255,255,255,0.05); align-items:center;">
+                                                <span style="font-weight:700; color:var(--primary); font-size:1.1rem;">₹ {{ r.price }}</span>
+                                                
+                                                <div style="display:flex; gap:0.3rem;">
+                                                    <a href="{{ url_for('toggle_wishlist', product_id=r.id) }}" class="btn btn-secondary" style="padding:0.3rem 0.5rem; font-size:0.8rem;" title="Remove Wishlist">💔</a>
+                                                    <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" style="margin:0;">
+                                                        <input type="hidden" name="quantity" value="1">
+                                                        <input type="hidden" name="unit" value="{{ 'piece' if r.price_unit == 'piece' else 'kg' }}">
+                                                        <button type="submit" class="btn" style="padding:0.3rem 0.5rem; font-size:0.8rem;" title="Quick Add">🛒</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="empty-state text-center py-5 glass-panel">
+                                <span style="font-size: 3rem;">💖</span>
+                                <h4 class="mt-3">Wishlist is Empty</h4>
+                                <p>Add products to your wishlist by clicking the heart button on product details pages!</p>
+                                <a href="{{ url_for('shop_list') }}" class="btn mt-2">Explore Catalog</a>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- TAB 4: GENERAL HYBRID PICKS -->
                     <div id="favorites-tab" class="tab-pane">
                         {% if recommendations %}
                             <div class="fav-picks-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
@@ -346,8 +408,8 @@
             <!-- TAB SYSTEM -->
             <div class="tabs-container">
                 <div class="tabs-header">
-                    <button class="tab-btn active" onclick="switchTab('offers-list-tab', this)">🏷️ Offers & Deals</button>
-                    <button class="tab-btn" onclick="switchTab('posts-list-tab', this)">📢 Social Posts</button>
+                    <button class="tab-btn active" onclick="switchTab('offers-list-tab', this)">🏷️ Offers & Deals ({{ offers|length }})</button>
+                    <button class="tab-btn" onclick="switchTab('posts-list-tab', this)">📢 Social Posts ({{ posts|length }})</button>
                     <button class="tab-btn" onclick="switchTab('orders-list-tab', this)">🛍️ Recent Store Orders</button>
                 </div>
 

@@ -10,7 +10,7 @@ import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
-from models import db, User, Shop, Product, Order, OrderItem, ShopRating, ProductRating, ShopConnection, ShopPost, ShopOffer, ProfileCustomization
+from models import db, User, Shop, Product, Order, OrderItem, ShopRating, ProductRating, ShopConnection, ShopPost, ShopOffer, ProfileCustomization, Wishlist
 from recommender import recommender
 from chatbot import bot as chatbot
 
@@ -191,6 +191,26 @@ def profile():
         db.session.add(customization)
         db.session.commit()
 
+    # Dynamic Profile Completion Percentage Calculator
+    fields = [customization.bio, customization.location, customization.phone, customization.profile_photo, customization.cover_image]
+    socials = [customization.instagram_link, customization.facebook_link, customization.twitter_link, customization.website_link]
+    
+    filled = sum(1 for f in fields if f)
+    social_filled = sum(1 for s in socials if s)
+    if social_filled > 0:
+        filled += 1
+    total_fields = len(fields) + 1 # 5 fields + 1 generic socials group
+
+    shop = None
+    if current_user.role == 'owner':
+        shop = Shop.query.filter_by(owner_id=current_user.id).first()
+        if shop:
+            shop_fields = [shop.logo, shop.banner_image, shop.bio, shop.category]
+            filled += sum(1 for sf in shop_fields if sf)
+            total_fields += len(shop_fields)
+
+    completion_percentage = int((filled / total_fields) * 100)
+
     if current_user.role == 'customer':
         # Connected shops
         connections = ShopConnection.query.filter_by(customer_id=current_user.id).all()
@@ -227,6 +247,10 @@ def profile():
         total_orders = len(current_user.orders)
         recent_orders = Order.query.filter_by(customer_id=current_user.id).order_by(Order.id.desc()).limit(3).all()
 
+        # Fetch actual Wishlisted products
+        wishlist_records = Wishlist.query.filter_by(user_id=current_user.id).all()
+        wishlisted_products = [w.product for w in wishlist_records]
+
         try:
             recommendations = recommender.get_hybrid_recommendations(user_id=current_user.id, limit=8)
         except:
@@ -240,11 +264,12 @@ def profile():
             recommended_shops=recommended_shops,
             total_orders=total_orders,
             recent_orders=recent_orders,
-            recommendations=recommendations
+            recommendations=recommendations,
+            completion_percentage=completion_percentage,
+            wishlisted_products=wishlisted_products
         )
 
     else: # Owner
-        shop = Shop.query.filter_by(owner_id=current_user.id).first()
         if not shop:
             flash("Please setup your shop! ❌")
             return redirect(url_for('index'))
@@ -270,7 +295,8 @@ def profile():
             revenue=revenue,
             recent_orders=recent_orders,
             offers=offers,
-            posts=posts
+            posts=posts,
+            completion_percentage=completion_percentage
         )
 
 @app.route('/profile/edit', methods=['GET', 'POST'])
@@ -333,6 +359,28 @@ def profile_edit():
         return redirect(url_for('profile'))
 
     return render_template("profile_edit.html", customization=customization, shop=shop)
+
+@app.route('/wishlist/toggle/<int:product_id>', methods=['POST', 'GET'])
+@login_required
+def toggle_wishlist(product_id):
+    if current_user.role != 'customer':
+        flash("Only customers can wishlist products! ❌")
+        return redirect(request.referrer or url_for('shop_list'))
+
+    product = Product.query.get_or_404(product_id)
+    wish = Wishlist.query.filter_by(user_id=current_user.id, product_id=product.id).first()
+
+    if wish:
+        db.session.delete(wish)
+        db.session.commit()
+        flash(f"Removed '{product.name}' from your wishlist 💔")
+    else:
+        new_wish = Wishlist(user_id=current_user.id, product_id=product.id)
+        db.session.add(new_wish)
+        db.session.commit()
+        flash(f"Added '{product.name}' to your wishlist! 💖")
+
+    return redirect(request.referrer or url_for('product_details', product_id=product.id))
 
 @app.route('/shop/<int:shop_id>/connect', methods=['POST', 'GET'])
 @login_required

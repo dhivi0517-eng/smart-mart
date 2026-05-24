@@ -1,28 +1,43 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="glass-panel" style="max-width: 800px; margin: 2rem auto; animation: pageLoad 0.5s ease-out;">
+<div class="glass-panel" style="max-width: 800px; margin: 2rem auto; animation: pageLoad 0.5s ease-out; position:relative; overflow:hidden;">
+    
     <div class="flex-between mb-4 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-        <h2>✏️ Customize Profile</h2>
+        <h2>✏️ Customize Profile Dashboard</h2>
         <a href="{{ url_for('profile') }}" class="btn btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.9rem;">Back to Profile</a>
     </div>
 
     <form action="{{ url_for('profile_edit') }}" method="POST" enctype="multipart/form-data">
         
         <!-- SECTION 1: PERSONAL BRANDING -->
-        <h3 class="mb-3" style="color: var(--secondary); font-size: 1.25rem;">👤 Personal Branding</h3>
+        <h3 class="mb-3" style="color: var(--secondary); font-size: 1.25rem; display:flex; align-items:center; gap:0.5rem;">👤 Personal Branding</h3>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="mobile-stack">
-            <div class="form-group">
-                <label>Profile Picture</label>
-                <input type="file" name="profile_photo" accept="image/*" style="padding: 0.5rem;">
-                <small style="color: var(--text-muted);">Recommended square size (e.g. 500x500px)</small>
+        <!-- DP AND COVER FILE UPLOADS WITH PREVIEWS -->
+        <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1.5rem; margin-bottom: 2rem;" class="mobile-stack">
+            
+            <!-- AVATAR UPLOAD -->
+            <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); text-align:center;">
+                <label style="font-weight:600; display:block;" class="mb-2">Profile Picture (DP)</label>
+                <div style="position:relative; display:inline-block;" class="mb-2">
+                    <img id="avatarPreview" src="{% if customization.profile_photo %}{{ url_for('static', filename='uploads/' + customization.profile_photo) }}{% else %}https://api.dicebear.com/7.x/adventurer/svg?seed={{ current_user.username }}{% endif %}" alt="Avatar Preview" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--secondary); box-shadow: 0 4px 15px rgba(192, 132, 252, 0.3);">
+                </div>
+                <input type="file" name="profile_photo" accept="image/*" style="font-size:0.75rem; padding:0.4rem; border:none; background:transparent;">
+                <small style="color: var(--text-muted); display:block;" class="mt-1">PNG, JPG or WEBP</small>
             </div>
             
-            <div class="form-group">
-                <label>Profile Cover Banner</label>
-                <input type="file" name="cover_image" accept="image/*" style="padding: 0.5rem;">
-                <small style="color: var(--text-muted);">Recommended landscape banner (e.g. 1200x400px)</small>
+            <!-- COVER BANNER UPLOAD -->
+            <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); display:flex; flex-direction:column; justify-content:space-between;">
+                <div>
+                    <label style="font-weight:600; display:block;" class="mb-2">Profile Cover Banner</label>
+                    <input type="file" name="cover_image" accept="image/*" style="font-size:0.75rem; padding:0.4rem; border:none; background:transparent;">
+                    <small style="color: var(--text-muted); display:block;" class="mb-2">Landscape cover banner format</small>
+                </div>
+                <div id="coverPreview" style="width: 100%; height: 80px; border-radius: 12px; background-size: cover; background-position: center; border: 1px dashed rgba(255,255,255,0.15); {% if customization.cover_image %}background-image: url('{{ url_for('static', filename='uploads/' + customization.cover_image) }}');{% else %}background: linear-gradient(135deg, rgba(56,189,248,0.15), rgba(192,132,252,0.15));{% endif %}">
+                    {% if not customization.cover_image %}
+                        <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.3); font-size:0.8rem;">Cover Live Preview</div>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -33,7 +48,7 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="mobile-stack">
             <div class="form-group">
-                <label>Location</label>
+                <label>Location / Address</label>
                 <input type="text" name="location" placeholder="City, Country" value="{{ customization.location or '' }}">
             </div>
             <div class="form-group">
@@ -43,7 +58,7 @@
         </div>
 
         <!-- SECTION 2: SOCIAL CONNECTS -->
-        <h3 class="mb-3 mt-4" style="color: var(--primary); font-size: 1.25rem;">🔗 Social Profiles</h3>
+        <h3 class="mb-3 mt-4" style="color: var(--primary); font-size: 1.25rem; display:flex; align-items:center; gap:0.5rem;">🔗 Social Profiles</h3>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="mobile-stack">
             <div class="form-group">
                 <label>Instagram URL</label>
@@ -65,17 +80,31 @@
 
         <!-- SECTION 3: BUSINESS SETTINGS (OWNER ONLY) -->
         {% if current_user.role == 'owner' and shop %}
-        <div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 2rem; padding-top: 2rem;">
-            <h3 class="mb-3" style="color: var(--success); font-size: 1.25rem;">🏪 Shop Customization</h3>
+        <div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 2.5rem; padding-top: 2.5rem;">
+            <h3 class="mb-3" style="color: var(--success); font-size: 1.25rem; display:flex; align-items:center; gap:0.5rem;">🏪 Shop Customization</h3>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="mobile-stack">
-                <div class="form-group">
-                    <label>Shop Logo</label>
-                    <input type="file" name="shop_logo" accept="image/*" style="padding: 0.5rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 1.5rem; margin-bottom: 2rem;" class="mobile-stack">
+                
+                <!-- SHOP LOGO -->
+                <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); text-align:center;">
+                    <label style="font-weight:600; display:block;" class="mb-2">Shop Logo</label>
+                    <div style="position:relative; display:inline-block;" class="mb-2">
+                        <img id="logoPreview" src="{% if shop.logo %}{{ url_for('static', filename='uploads/' + shop.logo) }}{% else %}https://api.dicebear.com/7.x/identicon/svg?seed={{ shop.name }}{% endif %}" alt="Logo Preview" style="width: 100px; height: 100px; border-radius: 16px; object-fit: cover; border: 3px solid var(--success); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                    </div>
+                    <input type="file" name="shop_logo" accept="image/*" style="font-size:0.75rem; padding:0.4rem; border:none; background:transparent;">
                 </div>
-                <div class="form-group">
-                    <label>Shop Front Banner</label>
-                    <input type="file" name="shop_banner" accept="image/*" style="padding: 0.5rem;">
+                
+                <!-- SHOP BANNER -->
+                <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); display:flex; flex-direction:column; justify-content:space-between;">
+                    <div>
+                        <label style="font-weight:600; display:block;" class="mb-2">Shop Front Banner</label>
+                        <input type="file" name="shop_banner" accept="image/*" style="font-size:0.75rem; padding:0.4rem; border:none; background:transparent;">
+                    </div>
+                    <div id="sbannerPreview" style="width: 100%; height: 80px; border-radius: 12px; background-size: cover; background-position: center; border: 1px dashed rgba(255,255,255,0.15); {% if shop.banner_image %}background-image: url('{{ url_for('static', filename='uploads/' + shop.banner_image) }}');{% else %}background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(56,189,248,0.15));{% endif %}">
+                        {% if not shop.banner_image %}
+                            <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.3); font-size:0.8rem;">Banner Live Preview</div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
 
@@ -93,26 +122,60 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Shop Brief Bio / Tagline</label>
+                    <label>Shop Tagline / Slogan</label>
                     <input type="text" name="shop_bio" placeholder="Slogan or brief summary..." value="{{ shop.bio or '' }}">
                 </div>
             </div>
         </div>
         {% endif %}
 
-        <div class="flex-between mt-4">
-            <button type="submit" class="btn" style="min-width: 200px;">Save Profile</button>
+        <div class="flex-between mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:2rem;">
+            <button type="submit" class="btn" style="min-width: 200px;">💾 Save Changes</button>
             <a href="{{ url_for('profile') }}" style="color: var(--text-muted); font-weight: 500;">Cancel</a>
         </div>
 
     </form>
 </div>
 
+<!-- LIVE PREVIEW JAVASCRIPT -->
+<script>
+function setupImagePreview(inputName, previewId) {
+    const input = document.querySelector(`input[name="${inputName}"]`);
+    const preview = document.getElementById(previewId);
+    if(input && preview) {
+        input.addEventListener('change', function() {
+            const file = this.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if(preview.tagName === 'IMG') {
+                        preview.src = e.target.result;
+                    } else {
+                        preview.style.backgroundImage = `url(${e.target.result})`;
+                        preview.innerHTML = ''; // Clear text
+                    }
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setupImagePreview('profile_photo', 'avatarPreview');
+    setupImagePreview('cover_image', 'coverPreview');
+    {% if current_user.role == 'owner' %}
+    setupImagePreview('shop_logo', 'logoPreview');
+    setupImagePreview('shop_banner', 'sbannerPreview');
+    {% endif %}
+});
+</script>
+
 <style>
 @media (max-width: 768px) {
     .mobile-stack {
         grid-template-columns: 1fr !important;
-        gap: 0.5rem !important;
+        gap: 1rem !important;
     }
 }
 </style>

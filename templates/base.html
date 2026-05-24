@@ -81,23 +81,46 @@
 <div class="chat-widget">
     <div class="chat-window" id="chatWindow">
         <div class="chat-header">
-            <h3>✨ AI Assistant</h3>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <span class="chat-header-avatar">✨</span>
+                <div>
+                    <h3 style="margin:0; font-size:1rem; font-weight:600;">SaaS AI Assistant</h3>
+                    <small style="color:var(--success); font-size:0.7rem; font-weight:500;">🟢 Online & Active</small>
+                </div>
+            </div>
             <button class="close-chat" id="closeChatBtn">✕</button>
         </div>
+        
         <div class="chat-messages" id="chatMessages">
             <div class="chat-message bot">
-                Hello! ✨ I am your MiniMartPro AI assistant. I can help you find products or add items to your cart. How can I assist you today?
+                <div class="msg-avatar">✨</div>
+                <div class="msg-bubble-wrapper">
+                    <div class="msg-bubble">
+                        Hello! 👋 I am your MiniMartPro AI assistant.<br><br>
+                        I can help you search our database for products, check live pricing, or add items to your cart! How can I help you today?
+                    </div>
+                    <span class="msg-time">Just Now</span>
+                </div>
             </div>
+            
             <div class="typing-indicator" id="typingIndicator">
-                <span></span><span></span><span></span>
+                <div class="msg-avatar">✨</div>
+                <div class="typing-dots">
+                    <span></span><span></span><span></span>
+                </div>
             </div>
         </div>
+
         <div class="chat-input-area">
             <input type="text" id="chatInput" placeholder="Ask to find or add to cart..." autocomplete="off">
             <button id="sendChatBtn">➤</button>
         </div>
     </div>
-    <button class="chat-toggle" id="chatToggleBtn">💬</button>
+    
+    <button class="chat-toggle" id="chatToggleBtn">
+        <span class="chat-toggle-icon">💬</span>
+        <span class="chat-toggle-label">AI Assistant</span>
+    </button>
 </div>
 
 <script>
@@ -143,21 +166,79 @@
         chatWindow.classList.toggle('active');
         if(chatWindow.classList.contains('active')) {
             chatInput.focus();
+            scrollToBottom();
         }
     }
 
     chatToggleBtn.addEventListener('click', toggleChat);
     closeChatBtn.addEventListener('click', toggleChat);
 
+    function scrollToBottom() {
+        chatMessages.scrollTo({
+            top: chatMessages.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+
+    function formatMessageText(text) {
+        // Replace bold markers
+        let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        
+        // Parse list bullet lines
+        let lines = formatted.split('\n');
+        let inList = false;
+        let finalLines = [];
+
+        for (let line of lines) {
+            if (line.trim().startsWith('* ')) {
+                if (!inList) {
+                    finalLines.push('<ul>');
+                    inList = true;
+                }
+                finalLines.push('<li>' + line.trim().substring(2) + '</li>');
+            } else {
+                if (inList) {
+                    finalLines.push('</ul>');
+                    inList = false;
+                }
+                finalLines.push(line);
+            }
+        }
+        if (inList) {
+            finalLines.push('</ul>');
+        }
+
+        return finalLines.join('<br>').replace(/<br><br>/g, '<br>');
+    }
+
     function addMessage(text, sender) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `chat-message ${sender}`;
-        // replace **text** with <b>text</b> for bold rendering
-        let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-        msgDiv.innerHTML = formattedText;
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'msg-avatar';
+        avatar.innerText = sender === 'bot' ? '✨' : '👤';
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'msg-bubble-wrapper';
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'msg-bubble';
+        bubble.innerHTML = formatMessageText(text);
+        
+        const time = document.createElement('span');
+        time.className = 'msg-time';
+        const now = new Date();
+        time.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        wrapper.appendChild(bubble);
+        wrapper.appendChild(time);
+        msgDiv.appendChild(avatar);
+        msgDiv.appendChild(wrapper);
         
         chatMessages.insertBefore(msgDiv, typingIndicator);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollToBottom();
     }
 
     async function sendMessage() {
@@ -167,8 +248,9 @@
         addMessage(text, 'user');
         chatInput.value = '';
         
-        typingIndicator.style.display = 'block';
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Show typing indicator
+        typingIndicator.classList.add('active');
+        scrollToBottom();
 
         try {
             const response = await fetch('/api/chat', {
@@ -178,7 +260,8 @@
             });
             const data = await response.json();
             
-            typingIndicator.style.display = 'none';
+            // Hide typing indicator
+            typingIndicator.classList.remove('active');
             addMessage(data.message, 'bot');
             
             if(data.action === 'add_to_cart') {
@@ -187,8 +270,8 @@
                 }
             }
         } catch(e) {
-            typingIndicator.style.display = 'none';
-            addMessage('Connection error. Please try again.', 'bot');
+            typingIndicator.classList.remove('active');
+            addMessage('⚠️ Connection error. I am having trouble reaching the database right now. Please try again.', 'bot');
         }
     }
 

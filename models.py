@@ -249,4 +249,18 @@ class ProfileCustomization(db.Model):
     joined_date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+class Wishlist(db.Model):
+    __tablename__ = 'wishlist'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    product = db.relationship('Product', backref='wishlisted_by', lazy=True)
+    user = db.relationship('User', backref='wishlist_items', lazy=True)
+
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
