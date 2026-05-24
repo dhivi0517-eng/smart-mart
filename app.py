@@ -10,7 +10,7 @@ import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
-from models import db, User, Shop, Product, Order, OrderItem, ShopRating, ProductRating
+from models import db, User, Shop, Product, Order, OrderItem, ShopRating, ProductRating, ShopConnection, ShopPost, ShopOffer, ProfileCustomization
 from recommender import recommender
 from chatbot import bot as chatbot
 
@@ -185,7 +185,311 @@ def invoice(order_id):
 @app.route('/profile')
 @login_required
 def profile():
-    return render_template("profile.html")
+    customization = ProfileCustomization.query.filter_by(user_id=current_user.id).first()
+    if not customization:
+        customization = ProfileCustomization(user_id=current_user.id)
+        db.session.add(customization)
+        db.session.commit()
+
+    if current_user.role == 'customer':
+        # Connected shops
+        connections = ShopConnection.query.filter_by(customer_id=current_user.id).all()
+        connected_shop_ids = [c.shop_id for c in connections]
+        connected_shops = Shop.query.filter(Shop.id.in_(connected_shop_ids)).all() if connected_shop_ids else []
+
+        # Connected shops feed: Unified list of Posts and Offers
+        feed_items = []
+        if connected_shop_ids:
+            posts = ShopPost.query.filter(ShopPost.shop_id.in_(connected_shop_ids)).all()
+            offers = ShopOffer.query.filter(ShopOffer.shop_id.in_(connected_shop_ids)).all()
+            
+            for p in posts:
+                feed_items.append({
+                    'type': 'post',
+                    'item': p,
+                    'created_at': p.created_at,
+                    'shop': p.shop
+                })
+            for o in offers:
+                feed_items.append({
+                    'type': 'offer',
+                    'item': o,
+                    'created_at': o.created_at,
+                    'shop': o.shop
+                })
+            # Sort feed by newest first
+            feed_items.sort(key=lambda x: x['created_at'], reverse=True)
+
+        # Recommendations (shops that the customer is not connected to yet)
+        recommended_shops = Shop.query.filter(~Shop.id.in_(connected_shop_ids)).limit(4).all() if connected_shop_ids else Shop.query.limit(4).all()
+
+        # Customer Stats
+        total_orders = len(current_user.orders)
+        recent_orders = Order.query.filter_by(customer_id=current_user.id).order_by(Order.id.desc()).limit(3).all()
+
+        try:
+            recommendations = recommender.get_hybrid_recommendations(user_id=current_user.id, limit=8)
+        except:
+            recommendations = []
+
+        return render_template(
+            "profile.html",
+            customization=customization,
+            connected_shops=connected_shops,
+            feed_items=feed_items[:15], # Limit to latest 15 feed items
+            recommended_shops=recommended_shops,
+            total_orders=total_orders,
+            recent_orders=recent_orders,
+            recommendations=recommendations
+        )
+
+    else: # Owner
+        shop = Shop.query.filter_by(owner_id=current_user.id).first()
+        if not shop:
+            flash("Please setup your shop! ❌")
+            return redirect(url_for('index'))
+
+        # Stats
+        products_count = Product.query.filter_by(shop_id=shop.id).count()
+        connections_count = ShopConnection.query.filter_by(shop_id=shop.id).count()
+        
+        orders = Order.query.filter_by(shop_id=shop.id).all()
+        revenue = sum(o.total for o in orders)
+        recent_orders = Order.query.filter_by(shop_id=shop.id).order_by(Order.id.desc()).limit(5).all()
+
+        # Offers & Posts
+        offers = ShopOffer.query.filter_by(shop_id=shop.id).order_by(ShopOffer.id.desc()).all()
+        posts = ShopPost.query.filter_by(shop_id=shop.id).order_by(ShopPost.id.desc()).all()
+
+        return render_template(
+            "profile.html",
+            customization=customization,
+            shop=shop,
+            products_count=products_count,
+            connections_count=connections_count,
+            revenue=revenue,
+            recent_orders=recent_orders,
+            offers=offers,
+            posts=posts
+        )
+
+@app.route('/profile/edit', methods=['GET', 'POST'])
+@login_required
+def profile_edit():
+    customization = ProfileCustomization.query.filter_by(user_id=current_user.id).first()
+    if not customization:
+        customization = ProfileCustomization(user_id=current_user.id)
+        db.session.add(customization)
+        db.session.commit()
+
+    shop = None
+    if current_user.role == "owner":
+        shop = Shop.query.filter_by(owner_id=current_user.id).first()
+
+    if request.method == 'POST':
+        customization.bio = request.form.get('bio')
+        customization.location = request.form.get('location')
+        customization.phone = request.form.get('phone')
+        customization.instagram_link = request.form.get('instagram')
+        customization.facebook_link = request.form.get('facebook')
+        customization.twitter_link = request.form.get('twitter')
+        customization.website_link = request.form.get('website')
+
+        # Handling File Uploads
+        profile_photo = request.files.get('profile_photo')
+        if profile_photo and profile_photo.filename != "":
+            filename = secure_filename(profile_photo.filename)
+            filename = f"avatar_{current_user.id}_{filename}"
+            profile_photo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            customization.profile_photo = filename
+
+        cover_image = request.files.get('cover_image')
+        if cover_image and cover_image.filename != "":
+            filename = secure_filename(cover_image.filename)
+            filename = f"cover_{current_user.id}_{filename}"
+            cover_image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            customization.cover_image = filename
+
+        if current_user.role == "owner" and shop:
+            shop.category = request.form.get('shop_category', 'General')
+            shop.bio = request.form.get('shop_bio')
+            
+            shop_logo = request.files.get('shop_logo')
+            if shop_logo and shop_logo.filename != "":
+                filename = secure_filename(shop_logo.filename)
+                filename = f"logo_{shop.id}_{filename}"
+                shop_logo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                shop.logo = filename
+            
+            shop_banner = request.files.get('shop_banner')
+            if shop_banner and shop_banner.filename != "":
+                filename = secure_filename(shop_banner.filename)
+                filename = f"sbanner_{shop.id}_{filename}"
+                shop_banner.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                shop.banner_image = filename
+
+        db.session.commit()
+        flash("Profile Updated Successfully! ✅")
+        return redirect(url_for('profile'))
+
+    return render_template("profile_edit.html", customization=customization, shop=shop)
+
+@app.route('/shop/<int:shop_id>/connect', methods=['POST', 'GET'])
+@login_required
+def toggle_connect(shop_id):
+    if current_user.role != 'customer':
+        flash("Only customers can connect with shops! ❌")
+        return redirect(request.referrer or url_for('shop_list'))
+
+    shop = Shop.query.get_or_404(shop_id)
+    conn = ShopConnection.query.filter_by(customer_id=current_user.id, shop_id=shop.id).first()
+
+    if conn:
+        db.session.delete(conn)
+        db.session.commit()
+        flash(f"Disconnected from {shop.name} 💔")
+    else:
+        new_conn = ShopConnection(customer_id=current_user.id, shop_id=shop.id)
+        db.session.add(new_conn)
+        db.session.commit()
+        flash(f"Connected to {shop.name}! 🤝")
+
+    return redirect(request.referrer or url_for('shop_products', shop_id=shop.id))
+
+@app.route('/owner/post/create', methods=['POST'])
+@login_required
+def create_post():
+    if current_user.role != 'owner':
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+
+    shop = Shop.query.filter_by(owner_id=current_user.id).first()
+    if not shop:
+        flash("Please create a shop first! ❌")
+        return redirect(url_for('owner_dashboard'))
+
+    title = request.form.get('title')
+    content = request.form.get('content')
+    image_file = request.files.get('image')
+
+    if not title or not content:
+        flash("Title and Content are required! ❌")
+        return redirect(url_for('profile'))
+
+    filename = None
+    if image_file and image_file.filename != "":
+        filename = secure_filename(image_file.filename)
+        filename = f"post_{shop.id}_{int(datetime.datetime.now().timestamp())}_{filename}"
+        image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+    post = ShopPost(shop_id=shop.id, title=title, content=content, image=filename)
+    db.session.add(post)
+    db.session.commit()
+
+    flash("Post created successfully! 📢")
+    return redirect(url_for('profile'))
+
+@app.route('/owner/offer/create', methods=['POST'])
+@login_required
+def create_offer():
+    if current_user.role != 'owner':
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+
+    shop = Shop.query.filter_by(owner_id=current_user.id).first()
+    if not shop:
+        flash("Please create a shop first! ❌")
+        return redirect(url_for('owner_dashboard'))
+
+    title = request.form.get('title')
+    description = request.form.get('description')
+    discount = request.form.get('discount_percentage')
+    coupon = request.form.get('coupon_code')
+    start_str = request.form.get('start_date')
+    end_str = request.form.get('end_date')
+    offer_type = request.form.get('offer_type', 'Offer')
+    banner_file = request.files.get('banner_image')
+
+    if not title or not description or not discount or not start_str or not end_str:
+        flash("Missing required fields for offer! ❌")
+        return redirect(url_for('profile'))
+
+    try:
+        if 'T' in start_str:
+            start_date = datetime.datetime.strptime(start_str, '%Y-%m-%dT%H:%M')
+        else:
+            start_date = datetime.datetime.strptime(start_str, '%Y-%m-%d')
+        
+        if 'T' in end_str:
+            end_date = datetime.datetime.strptime(end_str, '%Y-%m-%dT%H:%M')
+        else:
+            end_date = datetime.datetime.strptime(end_str, '%Y-%m-%d')
+    except Exception as date_err:
+        print("ERROR PARSING DATES:", date_err)
+        flash("Invalid date format! ❌")
+        return redirect(url_for('profile'))
+
+    filename = None
+    if banner_file and banner_file.filename != "":
+        filename = secure_filename(banner_file.filename)
+        filename = f"offer_{shop.id}_{int(datetime.datetime.now().timestamp())}_{filename}"
+        banner_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    else:
+        flash("Banner image is required for offers! ❌")
+        return redirect(url_for('profile'))
+
+    offer = ShopOffer(
+        shop_id=shop.id,
+        title=title,
+        description=description,
+        banner_image=filename,
+        discount_percentage=float(discount),
+        coupon_code=coupon or None,
+        start_date=start_date,
+        end_date=end_date,
+        offer_type=offer_type
+    )
+    db.session.add(offer)
+    db.session.commit()
+
+    flash("Offer created successfully! 🏷️")
+    return redirect(url_for('profile'))
+
+@app.route('/owner/post/delete/<int:post_id>', methods=['POST'])
+@login_required
+def delete_post(post_id):
+    if current_user.role != 'owner':
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+    
+    post = ShopPost.query.get_or_404(post_id)
+    shop = Shop.query.filter_by(owner_id=current_user.id).first()
+    if not shop or post.shop_id != shop.id:
+        flash("Unauthorized action! ❌")
+        return redirect(url_for('profile'))
+
+    db.session.delete(post)
+    db.session.commit()
+    flash("Post deleted successfully! 🗑️")
+    return redirect(url_for('profile'))
+
+@app.route('/owner/offer/delete/<int:offer_id>', methods=['POST'])
+@login_required
+def delete_offer(offer_id):
+    if current_user.role != 'owner':
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+    
+    offer = ShopOffer.query.get_or_404(offer_id)
+    shop = Shop.query.filter_by(owner_id=current_user.id).first()
+    if not shop or offer.shop_id != shop.id:
+        flash("Unauthorized action! ❌")
+        return redirect(url_for('profile'))
+
+    db.session.delete(offer)
+    db.session.commit()
+    flash("Offer deleted successfully! 🗑️")
+    return redirect(url_for('profile'))
 
 @app.route('/search')
 @login_required
@@ -227,7 +531,49 @@ def load_user(user_id):
 # ================= HOME =================
 @app.route('/')
 def index():
-    return render_template("index.html")
+    # 1. Fetch Trending Offers (highest discount active offers)
+    now = datetime.datetime.now()
+    active_offers = ShopOffer.query.filter(ShopOffer.start_date <= now, ShopOffer.end_date >= now).all()
+    
+    trending_offers = sorted(active_offers, key=lambda o: o.discount_percentage, reverse=True)[:6]
+
+    # 2. Today's Deals (Active offers ending soon)
+    today_deals = []
+    tomorrow = now + datetime.timedelta(days=1)
+    for o in active_offers:
+        if o.end_date <= tomorrow:
+            today_deals.append(o)
+    if not today_deals:
+        # Fallback to general active offers
+        today_deals = active_offers[:6]
+
+    # 3. Connected Shop Offers
+    connected_shop_offers = []
+    recommended_shops = []
+    if current_user.is_authenticated and current_user.role == 'customer':
+        connections = ShopConnection.query.filter_by(customer_id=current_user.id).all()
+        connected_shop_ids = [c.shop_id for c in connections]
+        if connected_shop_ids:
+            connected_shop_offers = ShopOffer.query.filter(
+                ShopOffer.shop_id.in_(connected_shop_ids),
+                ShopOffer.start_date <= now,
+                ShopOffer.end_date >= now
+            ).order_by(ShopOffer.id.desc()).all()
+
+            # Recommend shops user is NOT connected to
+            recommended_shops = Shop.query.filter(~Shop.id.in_(connected_shop_ids)).limit(4).all()
+        else:
+            recommended_shops = Shop.query.limit(4).all()
+    else:
+        recommended_shops = Shop.query.limit(4).all()
+
+    return render_template(
+        "index.html",
+        trending_offers=trending_offers,
+        today_deals=today_deals,
+        connected_shop_offers=connected_shop_offers,
+        recommended_shops=recommended_shops
+    )
 
 
 # ================= REGISTER =================
@@ -407,12 +753,45 @@ def shop_products(shop_id):
     shop = Shop.query.get_or_404(shop_id)
     products = Product.query.filter_by(shop_id=shop.id).all()
     
+    # Connection status
+    is_connected = False
+    if current_user.role == 'customer':
+        conn = ShopConnection.query.filter_by(customer_id=current_user.id, shop_id=shop.id).first()
+        is_connected = conn is not None
+
+    # Offers and posts
+    offers = ShopOffer.query.filter_by(shop_id=shop.id).order_by(ShopOffer.id.desc()).all()
+    posts = ShopPost.query.filter_by(shop_id=shop.id).order_by(ShopPost.id.desc()).all()
+
+    # Split offers into active/upcoming and expired
+    now = datetime.datetime.now()
+    active_offers = [o for o in offers if o.start_date <= now <= o.end_date]
+    upcoming_offers = [o for o in offers if now < o.start_date]
+    expired_offers = [o for o in offers if now > o.end_date]
+
+    # Combine active and upcoming for the top display
+    display_offers = active_offers + upcoming_offers
+
+    # Ratings
+    ratings = ShopRating.query.filter_by(shop_id=shop.id).all()
+
+    # Recommendations (using limit=8 to populate the compact slider)
     try:
-        recommendations = recommender.get_hybrid_recommendations(user_id=current_user.id, limit=4)
+        recommendations = recommender.get_hybrid_recommendations(user_id=current_user.id, limit=8)
     except:
         recommendations = []
         
-    return render_template("shop_products.html", shop=shop, products=products, recommendations=recommendations)
+    return render_template(
+        "shop_products.html",
+        shop=shop,
+        products=products,
+        recommendations=recommendations,
+        is_connected=is_connected,
+        display_offers=display_offers,
+        expired_offers=expired_offers,
+        posts=posts,
+        ratings=ratings
+    )
 
 
 # ================= OWNER DASHBOARD =================
@@ -874,10 +1253,24 @@ def check_and_update_db_schema():
             
             # 2. Add price_unit column to product table (SQLite and PostgreSQL)
             try:
-                conn.execute(text("ALTER TABLE product ADD COLUMN price_unit VARCHAR(20) DEFAULT 'piece';"))
+                if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
+                    conn.execute(text('ALTER TABLE product ADD COLUMN IF NOT EXISTS price_unit VARCHAR(20) DEFAULT \'piece\';'))
+                else:
+                    conn.execute(text("ALTER TABLE product ADD COLUMN price_unit VARCHAR(20) DEFAULT 'piece';"))
                 print("Added column price_unit to product table.")
             except Exception as col_err:
                 print("Column price_unit may already exist or cannot be added:", str(col_err))
+
+            # 3. Add custom columns to shop table (SQLite and PostgreSQL)
+            for col, col_type in [("logo", "VARCHAR(200)"), ("banner_image", "VARCHAR(200)"), ("category", "VARCHAR(100) DEFAULT 'General'"), ("bio", "VARCHAR(500)")]:
+                try:
+                    if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
+                        conn.execute(text(f'ALTER TABLE shop ADD COLUMN IF NOT EXISTS {col} {col_type};'))
+                    else:
+                        conn.execute(text(f'ALTER TABLE shop ADD COLUMN {col} {col_type};'))
+                    print(f"Added column {col} to shop table.")
+                except Exception as col_err:
+                    print(f"Column {col} to shop may already exist or cannot be added:", str(col_err))
     except Exception as e:
         print("ERROR: Database schema check/update failed:", str(e))
 

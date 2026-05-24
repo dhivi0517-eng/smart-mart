@@ -1,14 +1,1149 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="glass-panel text-center" style="max-width: 400px; margin: 3rem auto;">
-    <div style="width: 80px; height: 80px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; margin: 0 auto 1.5rem; box-shadow: 0 0 20px var(--primary-glow);">
-        👤
+<!-- PROFILE BANNER CONTAINER -->
+<div class="profile-container" style="animation: pageLoad 0.5s ease-out;">
+    
+    <!-- COVER IMAGE -->
+    <div class="profile-cover">
+        {% if customization.cover_image %}
+            <img src="{{ url_for('static', filename='uploads/' + customization.cover_image) }}" alt="Cover Banner" class="cover-img-elem">
+        {% else %}
+            <div class="cover-img-elem default-cover"></div>
+        {% endif %}
+        
+        <!-- EDIT BUTTON -->
+        <a href="{{ url_for('profile_edit') }}" class="edit-profile-btn">✏️ Edit Profile</a>
     </div>
-    <h2 class="mb-4">Profile</h2>
 
-    <p style="font-size: 1.1rem; margin-bottom: 0.5rem;"><b>Name:</b> {{ current_user.username }}</p>
-    <p style="font-size: 1.1rem; color: var(--text-muted);"><b>Email:</b> {{ current_user.email }}</p>
+    <!-- PROFILE INFO BLOCK -->
+    <div class="profile-header-card glass-panel">
+        
+        <!-- PHOTO & BASICS -->
+        <div class="profile-header-main">
+            <div class="profile-avatar-wrapper">
+                {% if customization.profile_photo %}
+                    <img src="{{ url_for('static', filename='uploads/' + customization.profile_photo) }}" alt="Profile Photo" class="profile-avatar">
+                {% else %}
+                    <div class="profile-avatar default-avatar">
+                        {{ current_user.username[0]|upper }}
+                    </div>
+                {% endif %}
+                <span class="role-badge {{ current_user.role }}">{{ current_user.role|upper }}</span>
+            </div>
+
+            <div class="profile-meta">
+                <h1 class="profile-name">{{ current_user.username }}</h1>
+                <p class="profile-username">@{{ current_user.username|lower }}</p>
+                <div class="profile-details-row">
+                    {% if customization.location %}
+                        <span>📍 {{ customization.location }}</span>
+                    {% endif %}
+                    <span>📅 Joined {{ customization.joined_date.strftime('%B %Y') }}</span>
+                    {% if customization.phone %}
+                        <span>📞 {{ customization.phone }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- BIO SECTION -->
+        <div class="profile-bio-box mt-3">
+            <p class="profile-bio">{{ customization.bio or 'This user hasn\'t written a bio yet. ✨' }}</p>
+        </div>
+
+        <!-- SOCIALS -->
+        <div class="profile-socials-row mt-3">
+            {% if customization.instagram_link %}
+                <a href="{{ customization.instagram_link }}" target="_blank" class="social-icon instagram" title="Instagram">📸 Instagram</a>
+            {% endif %}
+            {% if customization.facebook_link %}
+                <a href="{{ customization.facebook_link }}" target="_blank" class="social-icon facebook" title="Facebook">📘 Facebook</a>
+            {% endif %}
+            {% if customization.twitter_link %}
+                <a href="{{ customization.twitter_link }}" target="_blank" class="social-icon twitter" title="Twitter/X">🐦 Twitter/X</a>
+            {% endif %}
+            {% if customization.website_link %}
+                <a href="{{ customization.website_link }}" target="_blank" class="social-icon website" title="Website">🌐 Website</a>
+            {% endif %}
+            
+            {% if not customization.instagram_link and not customization.facebook_link and not customization.twitter_link and not customization.website_link %}
+                <small style="color: var(--text-muted);">No social links connected.</small>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- =========================================
+         CUSTOMER VIEW
+         ========================================= -->
+    {% if current_user.role == 'customer' %}
+    <div class="profile-layout mt-4">
+        
+        <!-- LEFT PANEL: FEEDS & PRODUCTS -->
+        <div class="profile-main-panel">
+            
+            <!-- STATS CARDS ROW -->
+            <div class="stats-row mb-4">
+                <div class="stat-box glass-panel">
+                    <span class="stat-number">{{ connected_shops|length }}</span>
+                    <span class="stat-lbl">Connected Shops</span>
+                </div>
+                <div class="stat-box glass-panel">
+                    <span class="stat-number">{{ total_orders }}</span>
+                    <span class="stat-lbl">Total Orders</span>
+                </div>
+                <div class="stat-box glass-panel">
+                    <span class="stat-number">{{ recommendations|length }}</span>
+                    <span class="stat-lbl">Favorite / Wishlist</span>
+                </div>
+            </div>
+
+            <!-- TAB CONTAINER -->
+            <div class="tabs-container">
+                <div class="tabs-header">
+                    <button class="tab-btn active" onclick="switchTab('feed-tab', this)">📢 Connected Feed</button>
+                    <button class="tab-btn" onclick="switchTab('purchases-tab', this)">🛍️ Recent Purchases</button>
+                    <button class="tab-btn" onclick="switchTab('favorites-tab', this)">✨ Personalized Picks</button>
+                </div>
+
+                <div class="tab-contents mt-3">
+                    
+                    <!-- TAB 1: CONNECTED SHops FEED -->
+                    <div id="feed-tab" class="tab-pane active">
+                        {% if feed_items %}
+                            <div class="timeline-feed">
+                                {% for item in feed_items %}
+                                    <div class="feed-card glass-panel mb-3">
+                                        <div class="feed-card-header">
+                                            <div class="feed-shop-meta">
+                                                {% if item.shop.logo %}
+                                                    <img src="{{ url_for('static', filename='uploads/' + item.shop.logo) }}" alt="Shop Logo" class="feed-shop-logo">
+                                                {% else %}
+                                                    <div class="feed-shop-logo default-shop-logo">{{ item.shop.name[0]|upper }}</div>
+                                                {% endif %}
+                                                <div>
+                                                    <a href="{{ url_for('shop_products', shop_id=item.shop.id) }}" class="feed-shop-name">{{ item.shop.name }}</a>
+                                                    <span class="feed-item-time">{{ item.created_at.strftime('%b %d, %Y') }}</span>
+                                                </div>
+                                            </div>
+
+                                            {% if item.type == 'offer' %}
+                                                <span class="feed-badge badge-offer">🏷️ OFFER - {{ item.item.offer_type }}</span>
+                                            {% else %}
+                                                <span class="feed-badge badge-post">📢 UPDATE</span>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="feed-card-body mt-2">
+                                            <h4 class="feed-card-title">{{ item.item.title }}</h4>
+                                            
+                                            {% if item.type == 'offer' %}
+                                                <div class="feed-offer-details mt-2 mb-2">
+                                                    <div class="feed-offer-percentage">{{ item.item.discount_percentage|int }}% OFF</div>
+                                                    <p class="feed-card-desc">{{ item.item.description }}</p>
+                                                    
+                                                    {% if item.item.coupon_code %}
+                                                        <div class="feed-coupon-badge">
+                                                            COUPON: <code>{{ item.item.coupon_code }}</code>
+                                                        </div>
+                                                    {% endif %}
+
+                                                    <div class="feed-offer-validity mt-2">
+                                                        📅 Active: {{ item.item.start_date.strftime('%d %b') }} to {{ item.item.end_date.strftime('%d %b, %Y') }}
+                                                    </div>
+                                                </div>
+                                                <img src="{{ url_for('static', filename='uploads/' + item.item.banner_image) }}" alt="Offer Banner" class="feed-offer-banner">
+                                            {% else %}
+                                                <p class="feed-card-desc mt-2">{{ item.item.content }}</p>
+                                                {% if item.item.image %}
+                                                    <img src="{{ url_for('static', filename='uploads/' + item.item.image) }}" alt="Post Image" class="feed-post-img mt-2">
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="feed-card-footer mt-3">
+                                            <a href="{{ url_for('shop_products', shop_id=item.shop.id) }}" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.85rem;">Visit Store</a>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="empty-state text-center py-5 glass-panel">
+                                <span style="font-size: 3rem;">📭</span>
+                                <h4 class="mt-3">Your Feed is Quiet</h4>
+                                <p>Connect with shops to see their updates, latest announcement banners, and discounts right here!</p>
+                                <a href="{{ url_for('shop_list') }}" class="btn mt-2">Explore Local Shops</a>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- TAB 2: RECENT PURCHASES -->
+                    <div id="purchases-tab" class="tab-pane">
+                        {% if recent_orders %}
+                            <div class="purchases-list">
+                                {% for o in recent_orders %}
+                                    <div class="purchase-item-card glass-panel mb-3">
+                                        <div class="flex-between">
+                                            <div>
+                                                <h4 style="margin:0;">Order #{{ o.id }}</h4>
+                                                <small style="color:var(--text-muted);">From Shop Code: {{ o.shop.shop_code }}</small>
+                                            </div>
+                                            <span class="badge {{ o.status }}">{{ o.status }}</span>
+                                        </div>
+                                        <div class="mt-2 pt-2" style="border-top:1px dashed rgba(255,255,255,0.05); display: flex; justify-content:space-between; align-items:center;">
+                                            <span>Total Value: <b>₹ {{ o.total }}</b></span>
+                                            <a href="{{ url_for('invoice', order_id=o.id) }}" class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size:0.8rem;">📄 PDF Invoice</a>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                                <a href="{{ url_for('my_orders') }}" class="btn btn-secondary w-100 mt-2">View Full Order History</a>
+                            </div>
+                        {% else %}
+                            <div class="empty-state text-center py-5 glass-panel">
+                                <span style="font-size: 3rem;">🛍️</span>
+                                <h4 class="mt-3">No orders yet</h4>
+                                <p>Place an order with any shop to see your receipt records here!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- TAB 3: WISHLIST / PERSONALIZED PICKS -->
+                    <div id="favorites-tab" class="tab-pane">
+                        {% if recommendations %}
+                            <div class="fav-picks-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
+                                {% for r in recommendations %}
+                                    <div class="fav-card glass-panel" style="display:flex; flex-direction:column; justify-content:space-between; padding: 1rem;">
+                                        <div>
+                                            {% if r.image %}
+                                                <img src="{{ url_for('static', filename='uploads/' + r.image) }}" alt="Product Image" style="width:100%; height:110px; object-fit:cover; border-radius:10px; margin-bottom:0.5rem;">
+                                            {% endif %}
+                                            <h5 style="margin:0; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.name }}</h5>
+                                            <small style="color: var(--primary); font-weight:600; display:block; margin: 0.3rem 0;">₹ {{ r.price }}</small>
+                                            <small style="color:var(--text-muted); display:block; font-size:0.75rem;">Store: {{ r.shop.name }}</small>
+                                        </div>
+                                        <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" style="margin-top:0.5rem; display:flex; gap:0.2rem;">
+                                            <input type="hidden" name="quantity" value="1">
+                                            <input type="hidden" name="unit" value="{{ 'piece' if r.price_unit == 'piece' else 'kg' }}">
+                                            <button type="submit" class="btn" style="flex:1; padding:0.3rem 0.5rem; font-size:0.75rem;">🛒 Quick Add</button>
+                                        </form>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="empty-state text-center py-5 glass-panel">
+                                <span style="font-size: 3rem;">💫</span>
+                                <h4 class="mt-3">Awaiting recommendations</h4>
+                                <p>Shop more to build your personalized smart recommendation dashboard!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT PANEL: CONNECTED SHOPS & SUGGESTIONS -->
+        <div class="profile-side-panel">
+            
+            <!-- CONNECTED SHOPS LIST -->
+            <div class="glass-panel mb-4">
+                <h3 style="font-size: 1.15rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;" class="mb-3">🤝 Connected Stores ({{ connected_shops|length }})</h3>
+                {% if connected_shops %}
+                    <div class="connected-shops-list" style="display:flex; flex-direction:column; gap:0.8rem;">
+                        {% for shop in connected_shops %}
+                            <div class="shop-list-mini-card">
+                                <div class="shop-mini-left">
+                                    {% if shop.logo %}
+                                        <img src="{{ url_for('static', filename='uploads/' + shop.logo) }}" alt="Logo" class="shop-mini-logo">
+                                    {% else %}
+                                        <div class="shop-mini-logo default-logo">{{ shop.name[0]|upper }}</div>
+                                    {% endif %}
+                                    <div>
+                                        <a href="{{ url_for('shop_products', shop_id=shop.id) }}" class="shop-mini-title">{{ shop.name }}</a>
+                                        <span class="shop-mini-category">{{ shop.category }}</span>
+                                    </div>
+                                </div>
+                                <a href="{{ url_for('toggle_connect', shop_id=shop.id) }}" class="btn-disconnect" title="Disconnect">✕</a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p style="color:var(--text-muted); font-size:0.9rem;">You aren't connected to any shops yet.</p>
+                {% endif %}
+            </div>
+
+            <!-- RECOMMENDATIONS TO CONNECT -->
+            <div class="glass-panel">
+                <h3 style="font-size: 1.15rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;" class="mb-3">✨ Recommended For You</h3>
+                {% if recommended_shops %}
+                    <div class="shop-rec-list" style="display:flex; flex-direction:column; gap:0.8rem;">
+                        {% for rshop in recommended_shops %}
+                            <div class="shop-list-mini-card">
+                                <div class="shop-mini-left">
+                                    {% if rshop.logo %}
+                                        <img src="{{ url_for('static', filename='uploads/' + rshop.logo) }}" alt="Logo" class="shop-mini-logo">
+                                    {% else %}
+                                        <div class="shop-mini-logo default-logo">{{ rshop.name[0]|upper }}</div>
+                                    {% endif %}
+                                    <div>
+                                        <a href="{{ url_for('shop_products', shop_id=rshop.id) }}" class="shop-mini-title">{{ rshop.name }}</a>
+                                        <span class="shop-mini-rating">⭐️ {{ rshop.average_rating }}</span>
+                                    </div>
+                                </div>
+                                <a href="{{ url_for('toggle_connect', shop_id=rshop.id) }}" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius: 6px;">Connect</a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- =========================================
+         OWNER VIEW
+         ========================================= -->
+    {% else %}
+    <div class="profile-layout mt-4">
+        
+        <!-- LEFT PANEL: ANALYTICS & RECENT ORDERS -->
+        <div class="profile-main-panel">
+            
+            <!-- QUICK ACTION HERO HEADER -->
+            <div class="owner-quick-actions mb-4 glass-panel flex-between" style="background: linear-gradient(135deg, rgba(192, 132, 252, 0.15), rgba(56, 189, 248, 0.15)); border: 1px solid rgba(255, 255, 255, 0.15);">
+                <div>
+                    <h3 style="margin:0; font-size:1.35rem; color: #fff;">🏪 Manage Storefront: <b>{{ shop.name }}</b></h3>
+                    <p style="margin:0; font-size:0.9rem; color:var(--text-muted);" class="mt-1">Category: {{ shop.category }} | Code: {{ shop.shop_code }}</p>
+                </div>
+                <div style="display:flex; gap:0.5rem;">
+                    <button class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="openModal('offerModal')">🏷️ Create Offer</button>
+                    <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="openModal('postModal')">📢 Create Post</button>
+                </div>
+            </div>
+
+            <!-- STATS CARDS ROW -->
+            <div class="stats-row mb-4">
+                <div class="stat-box glass-panel">
+                    <span class="stat-number">{{ products_count }}</span>
+                    <span class="stat-lbl">Active Products</span>
+                </div>
+                <div class="stat-box glass-panel">
+                    <span class="stat-number">{{ connections_count }}</span>
+                    <span class="stat-lbl">Connected Customers</span>
+                </div>
+                <div class="stat-box glass-panel">
+                    <span class="stat-number">₹ {{ revenue|int }}</span>
+                    <span class="stat-lbl">Total Sales</span>
+                </div>
+                <div class="stat-box glass-panel">
+                    <span class="stat-number">⭐️ {{ shop.average_rating }}</span>
+                    <span class="stat-lbl">Store Rating</span>
+                </div>
+            </div>
+
+            <!-- TAB SYSTEM -->
+            <div class="tabs-container">
+                <div class="tabs-header">
+                    <button class="tab-btn active" onclick="switchTab('offers-list-tab', this)">🏷️ Offers & Deals</button>
+                    <button class="tab-btn" onclick="switchTab('posts-list-tab', this)">📢 Social Posts</button>
+                    <button class="tab-btn" onclick="switchTab('orders-list-tab', this)">🛍️ Recent Store Orders</button>
+                </div>
+
+                <div class="tab-contents mt-3">
+                    
+                    <!-- TAB 1: OFFERS -->
+                    <div id="offers-list-tab" class="tab-pane active">
+                        {% if offers %}
+                            <div class="offers-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem;">
+                                {% for o in offers %}
+                                    <div class="owner-item-card glass-panel">
+                                        <div class="flex-between">
+                                            <span class="badge {{ o.status }}">{{ o.status }}</span>
+                                            <span class="badge rating-badge" style="background: rgba(255,255,255,0.05); color:#fff; border:none;">{{ o.offer_type }}</span>
+                                        </div>
+                                        <h4 class="mt-2 mb-1" style="font-size:1.1rem;">{{ o.title }}</h4>
+                                        <p style="font-size:0.85rem; color:var(--text-muted); line-height: 1.4; margin-bottom: 0.5rem;">{{ o.description }}</p>
+                                        <div style="background:rgba(56, 189, 248, 0.1); padding: 0.5rem; border-radius: 8px; font-size:0.9rem;" class="mb-2">
+                                            🏷️ <b>{{ o.discount_percentage|int }}% OFF</b> 
+                                            {% if o.coupon_code %} | Code: <code>{{ o.coupon_code }}</code>{% endif %}
+                                        </div>
+                                        <small style="color:var(--text-muted); display:block; margin-bottom: 0.8rem;">
+                                            Validity: {{ o.start_date.strftime('%d %b') }} - {{ o.end_date.strftime('%d %b, %Y') }}
+                                        </small>
+
+                                        <form action="{{ url_for('delete_offer', offer_id=o.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this offer?');" style="margin:0;">
+                                            <button type="submit" class="btn btn-danger" style="width:100%; padding:0.4rem; font-size:0.8rem; border-radius:6px; box-shadow:none;">🗑️ Delete Offer</button>
+                                        </form>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="empty-state text-center py-5 glass-panel">
+                                <span style="font-size: 3rem;">🏷️</span>
+                                <h4 class="mt-3">No offers created</h4>
+                                <p>Run store campaigns, festival discounts, and daily deals to engage customers!</p>
+                                <button class="btn mt-2" onclick="openModal('offerModal')">+ Create First Offer</button>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- TAB 2: POSTS -->
+                    <div id="posts-list-tab" class="tab-pane">
+                        {% if posts %}
+                            <div class="posts-timeline" style="display:flex; flex-direction:column; gap:1.2rem;">
+                                {% for p in posts %}
+                                    <div class="post-item-card glass-panel">
+                                        <div class="flex-between">
+                                            <h4 style="margin:0; font-size: 1.15rem;">{{ p.title }}</h4>
+                                            <small style="color:var(--text-muted);">{{ p.created_at.strftime('%d %b, %Y') }}</small>
+                                        </div>
+                                        <p class="mt-2" style="font-size:0.95rem; line-height:1.5;">{{ p.content }}</p>
+                                        
+                                        {% if p.image %}
+                                            <img src="{{ url_for('static', filename='uploads/' + p.image) }}" alt="Post Media" style="max-height: 250px; width:100%; object-fit:cover; border-radius:12px;" class="mt-2">
+                                        {% endif %}
+
+                                        <div class="mt-3 pt-2" style="border-top:1px solid rgba(255,255,255,0.05); text-align:right;">
+                                            <form action="{{ url_for('delete_post', post_id=p.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this post?');" style="margin:0; display:inline-block;">
+                                                <button type="submit" class="btn" style="background:#ff4d4d; padding:0.4rem 1rem; font-size:0.8rem; border-radius:6px; box-shadow:none;">🗑️ Delete Post</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="empty-state text-center py-5 glass-panel">
+                                <span style="font-size: 3rem;">📢</span>
+                                <h4 class="mt-3">No updates published</h4>
+                                <p>Publish new announcements, shop hour changes, or product restocks directly to connected feeds!</p>
+                                <button class="btn mt-2" onclick="openModal('postModal')">+ Create First Post</button>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- TAB 3: RECENT STORE ORDERS -->
+                    <div id="orders-list-tab" class="tab-pane">
+                        {% if recent_orders %}
+                            <div class="table-responsive">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Order ID</th>
+                                            <th>Date</th>
+                                            <th>Total</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for o in recent_orders %}
+                                            <tr>
+                                                <td>#{{ o.id }}</td>
+                                                <td>{{ o.id }}</td>  <!-- Placeholder since created_at is omitted in baseline -->
+                                                <td style="color:var(--primary); font-weight:600;">₹ {{ o.total }}</td>
+                                                <td><span class="badge {{ o.status }}">{{ o.status }}</span></td>
+                                                <td>
+                                                    <div style="display:inline-flex; gap:0.4rem;">
+                                                        <a href="{{ url_for('invoice', order_id=o.id) }}" class="btn btn-secondary" style="padding:0.3rem 0.6rem; font-size:0.75rem; border-radius:6px;">Invoice</a>
+                                                        {% if o.status != 'Completed' %}
+                                                            <a href="{{ url_for('update_status', order_id=o.id) }}" class="btn" style="padding:0.3rem 0.6rem; font-size:0.75rem; border-radius:6px; box-shadow:none;">Next Step</a>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="empty-state text-center py-5 glass-panel">
+                                <span style="font-size: 3rem;">📦</span>
+                                <h4 class="mt-3">No orders yet</h4>
+                                <p>Orders placed by customer users will populate here for processing!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT PANEL: STORE MANAGEMENT QUICK BAR -->
+        <div class="profile-side-panel">
+            <div class="glass-panel" style="display:flex; flex-direction:column; gap:1.2rem;">
+                <h3 style="font-size: 1.15rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.5rem; margin:0;">🛠️ Quick Actions</h3>
+                
+                <a href="{{ url_for('owner_dashboard') }}" class="btn btn-secondary w-100" style="text-align:left; padding:0.6rem 1rem;">📦 Product Management</a>
+                <a href="{{ url_for('owner_orders') }}" class="btn btn-secondary w-100" style="text-align:left; padding:0.6rem 1rem;">🛍️ Order Management</a>
+                <a href="{{ url_for('analytics') }}" class="btn btn-secondary w-100" style="text-align:left; padding:0.6rem 1rem;">📊 Analytics Dashboard</a>
+                
+                <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:1rem; margin-top:0.5rem;">
+                    <small style="color:var(--text-muted); display:block;" class="mb-2">Shop Branding Details</small>
+                    
+                    {% if shop.logo %}
+                        <img src="{{ url_for('static', filename='uploads/' + shop.logo) }}" alt="Logo" style="width:60px; height:60px; border-radius:10px; object-fit:cover; border:1px solid rgba(255,255,255,0.1); display:block;" class="mb-2">
+                    {% endif %}
+                    
+                    <p style="margin:0; font-size:0.9rem;"><b>Tagline:</b> {{ shop.bio or 'No tagline created.' }}</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+
 </div>
+
+<!-- =========================================
+     MODAL OVERLAYS (OWNER ONLY)
+     ========================================= -->
+{% if current_user.role == 'owner' %}
+<!-- MODAL: CREATE OFFER -->
+<div id="offerModal" class="modal-overlay">
+    <div class="modal-box glass-panel">
+        <div class="flex-between modal-header mb-3">
+            <h3 style="margin:0;">🏷️ Create Promotion / Offer</h3>
+            <button class="close-modal-btn" onclick="closeModal('offerModal')">✕</button>
+        </div>
+        <form action="{{ url_for('create_offer') }}" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Offer Title</label>
+                <input type="text" name="title" placeholder="e.g. Festival Bumper Discount!" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" rows="2" placeholder="Describe the offer rules..." required></textarea>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;" class="mobile-stack">
+                <div class="form-group">
+                    <label>Discount Percentage (%)</label>
+                    <input type="number" name="discount_percentage" min="1" max="100" placeholder="e.g. 20" required>
+                </div>
+                <div class="form-group">
+                    <label>Coupon Code (Optional)</label>
+                    <input type="text" name="coupon_code" placeholder="e.g. SAVE20">
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;" class="mobile-stack">
+                <div class="form-group">
+                    <label>Start Date</label>
+                    <input type="datetime-local" name="start_date" required>
+                </div>
+                <div class="form-group">
+                    <label>End Date</label>
+                    <input type="datetime-local" name="end_date" required>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;" class="mobile-stack">
+                <div class="form-group">
+                    <label>Campaign Type</label>
+                    <select name="offer_type">
+                        <option value="Offer">Normal Offer</option>
+                        <option value="Daily Deal">Daily Deal</option>
+                        <option value="One-day Offer">One-day Offer</option>
+                        <option value="Product Promotion">Product Promotion</option>
+                        <option value="Festival Discount">Festival Discount</option>
+                        <option value="Announcement Banner">Announcement Banner</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Campaign Banner Image</label>
+                    <input type="file" name="banner_image" accept="image/*" required style="padding:0.4rem;">
+                </div>
+            </div>
+
+            <div class="mt-4 text-center">
+                <button type="submit" class="btn" style="min-width: 150px;">Create Campaign</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: CREATE POST -->
+<div id="postModal" class="modal-overlay">
+    <div class="modal-box glass-panel">
+        <div class="flex-between modal-header mb-3">
+            <h3 style="margin:0;">📢 Write Social Feed Update</h3>
+            <button class="close-modal-btn" onclick="closeModal('postModal')">✕</button>
+        </div>
+        <form action="{{ url_for('create_post') }}" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Post Title</label>
+                <input type="text" name="title" placeholder="e.g. New Grocery Stock Just Arrived!" required>
+            </div>
+
+            <div class="form-group">
+                <label>Content</label>
+                <textarea name="content" rows="4" placeholder="Tell your connected customers what's new in the store..." required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Post Attachment Image (Optional)</label>
+                <input type="file" name="image" accept="image/*" style="padding:0.4rem;">
+            </div>
+
+            <div class="mt-4 text-center">
+                <button type="submit" class="btn" style="min-width: 150px;">Publish Post</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- INTERACTIVE SCRIPTS -->
+<script>
+function switchTab(tabId, btnElement) {
+    // Hide all tab panes
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    tabPanes.forEach(pane => pane.classList.remove('active'));
+
+    // Remove active class from all buttons
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => btn.classList.remove('active'));
+
+    // Activate the targeted tab and button
+    document.getElementById(tabId).classList.add('active');
+    btnElement.classList.add('active');
+}
+
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if(modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if(modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// Close modal when clicking outside box
+window.addEventListener('click', function(e) {
+    const overlays = document.querySelectorAll('.modal-overlay');
+    overlays.forEach(overlay => {
+        if(e.target === overlay) {
+            overlay.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+    });
+});
+</script>
+
+<style>
+/* PROFILE BASE STYLES */
+.profile-container {
+    width:100%;
+    margin-top: 1rem;
+}
+
+.profile-cover {
+    width:100%;
+    height: 250px;
+    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.cover-img-elem {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.default-cover {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+}
+
+.edit-profile-btn {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff !important;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.85rem;
+    border-radius: 99px;
+    font-weight:600;
+}
+
+.edit-profile-btn:hover {
+    background: rgba(255,255,255,0.15);
+    color: var(--primary) !important;
+}
+
+.profile-header-card {
+    margin-top: -50px;
+    position: relative;
+    z-index: 5;
+    padding: 1.5rem 2rem !important;
+}
+
+.profile-header-main {
+    display:flex;
+    align-items:flex-end;
+    gap: 2rem;
+}
+
+.profile-avatar-wrapper {
+    position: relative;
+    margin-top:-60px;
+}
+
+.profile-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--bg-dark);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+
+.default-avatar {
+    background: var(--primary);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size: 3rem;
+    font-weight:700;
+}
+
+.role-badge {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    font-size: 0.65rem;
+    font-weight:700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 99px;
+    border: 2px solid var(--bg-dark);
+}
+
+.role-badge.customer { background: var(--secondary); color:#fff; }
+.role-badge.owner { background: var(--success); color:#fff; }
+
+.profile-meta {
+    flex-grow:1;
+}
+
+.profile-name {
+    font-size: 1.85rem;
+    margin-bottom: 0.2rem;
+}
+
+.profile-username {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+.profile-details-row {
+    display:flex;
+    gap:1.5rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.profile-bio-box {
+    border-top:1px solid rgba(255,255,255,0.05);
+    padding-top:1rem;
+}
+
+.profile-bio {
+    font-size: 0.95rem;
+    line-height:1.5;
+    margin:0;
+}
+
+.profile-socials-row {
+    display:flex;
+    gap:1rem;
+    flex-wrap:wrap;
+}
+
+.social-icon {
+    font-size: 0.85rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    color: var(--text-main) !important;
+}
+
+.social-icon:hover {
+    background: rgba(56, 189, 248, 0.1);
+    color: var(--primary) !important;
+    border-color: var(--primary);
+}
+
+/* LAYOUT PANEL MECHANICS */
+.profile-layout {
+    display: grid;
+    grid-template-columns: 2.2fr 1fr;
+    gap: 1.5rem;
+}
+
+.stats-row {
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap:1rem;
+}
+
+.stat-box {
+    text-align:center;
+    padding: 1.2rem !important;
+}
+
+.stat-number {
+    font-size: 1.85rem;
+    font-weight:700;
+    color: var(--primary);
+    display:block;
+}
+
+.stat-lbl {
+    font-size:0.75rem;
+    color: var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    margin-top:0.3rem;
+    display:block;
+}
+
+/* TABS SYSTEM */
+.tabs-container {
+    width:100%;
+}
+
+.tabs-header {
+    display:flex;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    gap: 1.5rem;
+}
+
+.tab-btn {
+    background:transparent;
+    border:none;
+    color: var(--text-muted);
+    font-size: 1rem;
+    font-weight:600;
+    padding: 0.8rem 0;
+    cursor:pointer;
+    position:relative;
+    outline:none;
+    transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+    color: var(--text-main);
+}
+
+.tab-btn.active {
+    color: var(--primary);
+}
+
+.tab-btn.active::after {
+    content:'';
+    position:absolute;
+    bottom: -1px;
+    left:0;
+    width:100%;
+    height:2px;
+    background: var(--primary);
+    box-shadow: 0 0 10px var(--primary-glow);
+}
+
+.tab-pane {
+    display:none;
+}
+
+.tab-pane.active {
+    display:block;
+    animation: slideIn 0.4s ease-out;
+}
+
+/* TIMELINE FEED */
+.timeline-feed {
+    display:flex;
+    flex-direction:column;
+    gap:1.2rem;
+}
+
+.feed-card {
+    padding: 1.5rem !important;
+}
+
+.feed-card-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.feed-shop-meta {
+    display:flex;
+    align-items:center;
+    gap:0.8rem;
+}
+
+.feed-shop-logo {
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    object-fit:cover;
+    border:1px solid rgba(255,255,255,0.1);
+}
+
+.default-shop-logo {
+    background: var(--secondary);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:700;
+}
+
+.feed-shop-name {
+    font-weight:600;
+    color:#fff !important;
+    display:block;
+}
+
+.feed-shop-name:hover {
+    color: var(--primary) !important;
+}
+
+.feed-item-time {
+    font-size:0.75rem;
+    color:var(--text-muted);
+    display:block;
+}
+
+.feed-badge {
+    font-size:0.7rem;
+    font-weight:700;
+    padding:0.25rem 0.6rem;
+    border-radius:99px;
+}
+
+.feed-badge.badge-offer { background: rgba(56, 189, 248, 0.15); color: var(--primary); }
+.feed-badge.badge-post { background: rgba(192, 132, 252, 0.15); color: var(--secondary); }
+
+.feed-card-title {
+    font-size:1.25rem;
+    margin-bottom:0.5rem;
+}
+
+.feed-card-desc {
+    font-size:0.95rem;
+    line-height:1.5;
+    color: rgba(255,255,255,0.9);
+}
+
+.feed-offer-details {
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding:1rem;
+}
+
+.feed-offer-percentage {
+    font-size:1.85rem;
+    font-weight:700;
+    color: var(--primary);
+}
+
+.feed-coupon-badge {
+    display:inline-block;
+    background:rgba(255,255,255,0.05);
+    border:1px dashed rgba(255,255,255,0.2);
+    padding:0.3rem 0.8rem;
+    border-radius:6px;
+    font-size:0.85rem;
+    margin-top:0.5rem;
+}
+
+.feed-offer-validity {
+    font-size:0.8rem;
+    color: var(--text-muted);
+}
+
+.feed-offer-banner, .feed-post-img {
+    width:100%;
+    max-height: 250px;
+    object-fit:cover;
+    border-radius: 12px;
+    margin-top:0.8rem;
+}
+
+/* MINI CARDS */
+.shop-list-mini-card {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:rgba(255,255,255,0.02);
+    border:1px solid rgba(255,255,255,0.04);
+    padding: 0.8rem;
+    border-radius: 12px;
+}
+
+.shop-list-mini-card:hover {
+    background:rgba(255,255,255,0.05);
+}
+
+.shop-mini-left {
+    display:flex;
+    align-items:center;
+    gap:0.7rem;
+}
+
+.shop-mini-logo {
+    width:35px;
+    height:35px;
+    border-radius:50%;
+    object-fit:cover;
+}
+
+.shop-mini-logo.default-logo {
+    background: var(--primary);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:700;
+    font-size:0.9rem;
+}
+
+.shop-mini-title {
+    font-weight:600;
+    color:#fff !important;
+    font-size:0.9rem;
+    display:block;
+}
+
+.shop-mini-title:hover {
+    color: var(--primary) !important;
+}
+
+.shop-mini-category, .shop-mini-rating {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display:block;
+}
+
+.btn-disconnect {
+    color: var(--text-muted);
+    font-size:1.1rem;
+    padding:0.2rem;
+    line-height:1;
+}
+
+.btn-disconnect:hover {
+    color: var(--danger);
+}
+
+/* OWNER QUICK BOARD */
+.owner-quick-actions {
+    padding: 1.25rem 2rem !important;
+}
+
+/* MODAL OVERLAY */
+.modal-overlay {
+    position: fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background: rgba(9, 9, 11, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 3000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+}
+
+.modal-box {
+    width: 95%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y:auto;
+    padding:2rem !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
+    animation: scaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scaleUp {
+    from { transform: scale(0.9); opacity:0; }
+    to { transform: scale(1); opacity:1; }
+}
+
+.close-modal-btn {
+    background:transparent;
+    border:none;
+    color: var(--text-muted);
+    font-size:1.3rem;
+    cursor:pointer;
+}
+
+.close-modal-btn:hover {
+    color:#fff;
+}
+
+/* RESPONSIVE LAYOUT */
+@media (max-width: 992px) {
+    .profile-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 576px) {
+    .profile-header-main {
+        flex-direction:column;
+        align-items:center;
+        text-align:center;
+        gap: 1rem;
+    }
+    .profile-avatar-wrapper {
+        margin-top: -70px;
+    }
+    .profile-details-row {
+        justify-content:center;
+        flex-wrap:wrap;
+        gap: 0.6rem 1.2rem;
+    }
+    .mobile-stack {
+        grid-template-columns:1fr !important;
+        gap: 0.5rem !important;
+    }
+    .edit-profile-btn {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.75rem;
+    }
+}
+</style>
 
 {% endblock %}

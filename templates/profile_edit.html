@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="glass-panel" style="max-width: 800px; margin: 2rem auto; animation: pageLoad 0.5s ease-out;">
+    <div class="flex-between mb-4 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <h2>✏️ Customize Profile</h2>
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.9rem;">Back to Profile</a>
+    </div>
+
+    <form action="{{ url_for('profile_edit') }}" method="POST" enctype="multipart/form-data">
+        
+        <!-- SECTION 1: PERSONAL BRANDING -->
+        <h3 class="mb-3" style="color: var(--secondary); font-size: 1.25rem;">👤 Personal Branding</h3>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="mobile-stack">
+            <div class="form-group">
+                <label>Profile Picture</label>
+                <input type="file" name="profile_photo" accept="image/*" style="padding: 0.5rem;">
+                <small style="color: var(--text-muted);">Recommended square size (e.g. 500x500px)</small>
+            </div>
+            
+            <div class="form-group">
+                <label>Profile Cover Banner</label>
+                <input type="file" name="cover_image" accept="image/*" style="padding: 0.5rem;">
+                <small style="color: var(--text-muted);">Recommended landscape banner (e.g. 1200x400px)</small>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Bio / About Me</label>
+            <textarea name="bio" rows="3" placeholder="Tell the community who you are..." style="resize: vertical;">{{ customization.bio or '' }}</textarea>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="mobile-stack">
+            <div class="form-group">
+                <label>Location</label>
+                <input type="text" name="location" placeholder="City, Country" value="{{ customization.location or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Contact Phone</label>
+                <input type="text" name="phone" placeholder="+123456789" value="{{ customization.phone or '' }}">
+            </div>
+        </div>
+
+        <!-- SECTION 2: SOCIAL CONNECTS -->
+        <h3 class="mb-3 mt-4" style="color: var(--primary); font-size: 1.25rem;">🔗 Social Profiles</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="mobile-stack">
+            <div class="form-group">
+                <label>Instagram URL</label>
+                <input type="url" name="instagram" placeholder="https://instagram.com/username" value="{{ customization.instagram_link or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Facebook URL</label>
+                <input type="url" name="facebook" placeholder="https://facebook.com/username" value="{{ customization.facebook_link or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Twitter/X URL</label>
+                <input type="url" name="twitter" placeholder="https://twitter.com/username" value="{{ customization.twitter_link or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Personal Website</label>
+                <input type="url" name="website" placeholder="https://mywebsite.com" value="{{ customization.website_link or '' }}">
+            </div>
+        </div>
+
+        <!-- SECTION 3: BUSINESS SETTINGS (OWNER ONLY) -->
+        {% if current_user.role == 'owner' and shop %}
+        <div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 2rem; padding-top: 2rem;">
+            <h3 class="mb-3" style="color: var(--success); font-size: 1.25rem;">🏪 Shop Customization</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="mobile-stack">
+                <div class="form-group">
+                    <label>Shop Logo</label>
+                    <input type="file" name="shop_logo" accept="image/*" style="padding: 0.5rem;">
+                </div>
+                <div class="form-group">
+                    <label>Shop Front Banner</label>
+                    <input type="file" name="shop_banner" accept="image/*" style="padding: 0.5rem;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="mobile-stack">
+                <div class="form-group">
+                    <label>Shop Category</label>
+                    <select name="shop_category">
+                        <option value="Grocery" {% if shop.category == 'Grocery' %}selected{% endif %}>Grocery</option>
+                        <option value="Electronics" {% if shop.category == 'Electronics' %}selected{% endif %}>Electronics</option>
+                        <option value="Fashion & Clothes" {% if shop.category == 'Fashion & Clothes' %}selected{% endif %}>Fashion & Clothes</option>
+                        <option value="Beauty & Cosmetics" {% if shop.category == 'Beauty & Cosmetics' %}selected{% endif %}>Beauty & Cosmetics</option>
+                        <option value="Home & Kitchen" {% if shop.category == 'Home & Kitchen' %}selected{% endif %}>Home & Kitchen</option>
+                        <option value="Pharmacy & Health" {% if shop.category == 'Pharmacy & Health' %}selected{% endif %}>Pharmacy & Health</option>
+                        <option value="General Store" {% if shop.category == 'General Store' %}selected{% endif %}>General Store</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Shop Brief Bio / Tagline</label>
+                    <input type="text" name="shop_bio" placeholder="Slogan or brief summary..." value="{{ shop.bio or '' }}">
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="flex-between mt-4">
+            <button type="submit" class="btn" style="min-width: 200px;">Save Profile</button>
+            <a href="{{ url_for('profile') }}" style="color: var(--text-muted); font-weight: 500;">Cancel</a>
+        </div>
+
+    </form>
+</div>
+
+<style>
+@media (max-width: 768px) {
+    .mobile-stack {
+        grid-template-columns: 1fr !important;
+        gap: 0.5rem !important;
+    }
+}
+</style>
+
+{% endblock %}

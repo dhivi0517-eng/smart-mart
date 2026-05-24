@@ -5,7 +5,10 @@
 
     <div class="flex-between mb-4">
         <h2>{{ shop.name }} Dashboard</h2>
-        <a class="btn" href="{{ url_for('add_product') }}">+ Add Product</a>
+        <div style="display: flex; gap: 0.5rem;">
+            <a class="btn btn-secondary" href="{{ url_for('profile') }}">📢 Social & Offers</a>
+            <a class="btn" href="{{ url_for('add_product') }}">+ Add Product</a>
+        </div>
     </div>
 
     <h3 class="mb-3">Your Products</h3>

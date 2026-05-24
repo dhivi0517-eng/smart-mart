@@ -1,138 +1,1002 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="page-title">
-    {% if shop %}
-        <div class="flex-between" style="align-items: center; max-width: 600px; margin: 0 auto;">
-            <span>{{ shop.name }} Products</span>
-            <span class="badge rating-badge">⭐️ {{ shop.average_rating }}</span>
-        </div>
-        {% if current_user.role == 'customer' %}
-        <form action="{{ url_for('rate_shop', shop_id=shop.id) }}" method="POST" class="rating-form mt-2" style="max-width: 600px; margin: 0 auto; display: flex; justify-content: center; gap: 0.5rem; align-items: center;">
-            <label for="rating" style="margin: 0; font-size: 0.9rem;">Rate Shop:</label>
-            <select name="rating" style="width: auto; padding: 0.4rem; font-size: 0.9rem; border-radius: 8px;">
-                <option value="5">5 Stars</option>
-                <option value="4">4 Stars</option>
-                <option value="3">3 Stars</option>
-                <option value="2">2 Stars</option>
-                <option value="1">1 Star</option>
-            </select>
-            <button type="submit" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.8rem;">Submit</button>
-        </form>
+<div class="shop-products-container" style="animation: pageLoad 0.5s ease-out;">
+    
+    <!-- SHOP HEADER & COVER -->
+    <div class="shop-cover-wrapper">
+        {% if shop.banner_image %}
+            <img src="{{ url_for('static', filename='uploads/' + shop.banner_image) }}" alt="Shop Banner" class="shop-cover-banner">
+        {% else %}
+            <div class="shop-cover-banner default-shop-banner"></div>
         {% endif %}
-    {% else %}
-        Search Results
-    {% endif %}
-</h2>
-<form action="/search" class="form-group flex-between" style="max-width: 600px; margin: 0 auto 2rem;">
-    <input type="text" name="q" placeholder="Search products..." style="flex: 1; margin-right: 1rem;">
-    <button class="btn">Search</button>
-</form>
-
-<div class="grid-cards">
-
-{% if recommendations %}
-<div class="recommendation-section">
-    <div class="recommendation-header">
-        <h3>✨ Recommended For You</h3>
     </div>
-    <div class="recommendation-grid">
-        {% for r in recommendations %}
-        <div class="recommendation-card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-            <div>
-                {% if r.image %}
-                <a href="{{ url_for('product_details', product_id=r.id) }}">
-                    <img src="{{ url_for('static', filename='uploads/' + r.image) }}" class="recommendation-card-img" style="object-fit: cover;">
-                </a>
-                {% endif %}
-                <h4 class="recommendation-card-title">
-                    <a href="{{ url_for('product_details', product_id=r.id) }}" style="color: white; text-decoration: none;">
-                        {{ r.name }}
-                    </a>
-                </h4>
-                <div class="recommendation-card-price" style="font-size: 0.9rem; font-weight: 600;">
-                    ₹ {{ r.price }} / {{ r.price_unit }}
-                </div>
-            </div>
-            <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" class="recommendation-form-container" style="display:flex; gap:0.3rem; margin-top: 0.5rem; flex-wrap: wrap;">
-                <input type="number" name="quantity" value="1" min="0.001" step="any" required style="width: 50px; padding:0.4rem; flex: 1;">
-                {% if r.price_unit == 'piece' %}
-                <select name="unit" required style="padding: 0.4rem; border-radius: 8px; font-size: 0.8rem; flex: 1; min-width: 50px;">
-                    <option value="piece">pcs</option>
-                </select>
+
+    <!-- SHOP INFO MAIN CARD -->
+    <div class="shop-profile-card glass-panel mb-4">
+        <div class="shop-profile-main">
+            <div class="shop-logo-container">
+                {% if shop.logo %}
+                    <img src="{{ url_for('static', filename='uploads/' + shop.logo) }}" alt="Shop Logo" class="shop-profile-logo">
                 {% else %}
-                <select name="unit" required style="padding: 0.4rem; border-radius: 8px; font-size: 0.8rem; flex: 1; min-width: 50px;">
-                    <option value="g">g</option>
-                    <option value="kg" selected>kg</option>
-                </select>
+                    <div class="shop-profile-logo default-logo-box">
+                        {{ shop.name[0]|upper }}
+                    </div>
                 {% endif %}
-                <button type="submit" class="btn" style="flex:1; padding:0.4rem; font-size: 0.8rem; min-width: 50px;">Add</button>
-            </form>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %}
-
-    {% for p in products %}
-    <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
-
-        {% if p.image %}
-        <a href="{{ url_for('product_details', product_id=p.id) }}">
-            <img src="{{ url_for('static', filename='uploads/' + p.image) }}" class="card-img" style="object-fit: cover;">
-        </a>
-        {% endif %}
-
-        <div class="product-info" style="display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1;">
-            <div>
-                <div class="flex-between mb-1" style="align-items: center;">
-                    <h3 class="card-title" style="margin: 0; font-size: 1.2rem;">
-                        <a href="{{ url_for('product_details', product_id=p.id) }}" style="color: white; text-decoration: none;">
-                            {{ p.name }}
-                        </a>
-                    </h3>
-                    <span class="badge rating-badge">⭐️ {{ p.average_rating }}</span>
-                </div>
-                <p style="font-size: 0.85rem; line-height: 1.4; margin-bottom: 0.8rem; color: rgba(255,255,255,0.7);">{{ p.description }}</p>
-                <p class="card-price" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; color: var(--primary);">
-                    ₹ {{ p.price }} <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 400;">/ {{ p.price_unit }}</span>
-                </p>
             </div>
 
-            <div>
-                <form action="{{ url_for('add_to_cart', product_id=p.id) }}" method="POST" style="display:flex; gap:0.4rem; align-items:center; margin-bottom: 0.5rem; flex-wrap: wrap;">
-                    <input type="number" name="quantity" value="1" min="0.001" step="any" required style="width: 60px; padding:0.5rem; flex: 1.2; min-width: 50px;">
-                    {% if p.price_unit == 'piece' %}
-                    <select name="unit" required style="padding: 0.5rem; border-radius: 8px; flex: 1; min-width: 60px;">
-                        <option value="piece">pcs</option>
-                    </select>
-                    {% else %}
-                    <select name="unit" required style="padding: 0.5rem; border-radius: 8px; flex: 1; min-width: 60px;">
-                        <option value="g">g</option>
-                        <option value="kg" selected>kg</option>
-                    </select>
-                    {% endif %}
-                    <button type="submit" class="btn" style="flex: 1; padding: 0.5rem 1rem; min-width: 60px;">Add</button>
-                </form>
+            <div class="shop-profile-details">
+                <div class="shop-title-row">
+                    <h1 class="shop-name-title">{{ shop.name }}</h1>
+                    <span class="shop-code-tag">CODE: {{ shop.shop_code }}</span>
+                </div>
+                
+                <p class="shop-cat-line">🏷️ {{ shop.category }} | 📍 {{ shop.address or 'Local Seller' }}</p>
+                <p class="shop-tagline-line">{{ shop.bio or 'Your local mart for best deals! ✨' }}</p>
+            </div>
+
+            <!-- CONNECT & ACTION SYSTEM -->
+            <div class="shop-action-zone">
+                <div class="shop-rating-display mb-2">
+                    <span class="badge rating-badge" style="font-size: 1rem; padding: 0.5rem 1rem;">⭐️ {{ shop.average_rating }}</span>
+                    <small style="color: var(--text-muted); display:block; text-align:center;" class="mt-1">({{ ratings|length }} Reviews)</small>
+                </div>
                 
                 {% if current_user.role == 'customer' %}
-                <form action="{{ url_for('rate_product', product_id=p.id) }}" method="POST" style="display:flex; gap:0.4rem; align-items:center; margin-top: 0.5rem;">
-                    <select name="rating" style="flex: 1.5; padding: 0.4rem; font-size: 0.8rem; border-radius: 8px; min-width: 60px;">
-                        <option value="5">5 ⭐️</option>
-                        <option value="4">4 ⭐️</option>
-                        <option value="3">3 ⭐️</option>
-                        <option value="2">2 ⭐️</option>
-                        <option value="1">1 ⭐️</option>
-                    </select>
-                    <button type="submit" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; flex: 1; min-width: 50px;">Rate</button>
-                </form>
+                    <a href="{{ url_for('toggle_connect', shop_id=shop.id) }}" class="btn {% if is_connected %}btn-connected-glow{% else %}btn-secondary{% endif %} w-100" style="padding: 0.6rem 1.5rem; font-weight:700;">
+                        {% if is_connected %}
+                            🤝 Connected
+                        {% else %}
+                            ➕ Connect
+                        {% endif %}
+                    </a>
                 {% endif %}
             </div>
         </div>
+        
+        <!-- STATS CARD SUB ROW -->
+        <div class="shop-stats-row mt-3 pt-3" style="border-top: 1px solid rgba(255,255,255,0.06);">
+            <div class="shop-stat-col">
+                <span class="shop-stat-val">{{ products|length }}</span>
+                <span class="shop-stat-lbl">Products</span>
+            </div>
+            <div class="shop-stat-col">
+                <span class="shop-stat-val">{{ shop.connected_users_count }}</span>
+                <span class="shop-stat-lbl">Connectors</span>
+            </div>
+            <div class="shop-stat-col">
+                <span class="shop-stat-val">{{ display_offers|length }}</span>
+                <span class="shop-stat-lbl">Active Campaigns</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================
+         RECOMMENDED PRODUCTS COMPACT HORIZONTAL SLIDER
+         ========================================= -->
+    {% if recommendations and current_user.role == 'customer' %}
+    <div class="recommendation-slider-panel glass-panel mb-4">
+        <h3 class="slider-title-head">✨ Recommended For You</h3>
+        
+        <div class="snap-slider-container">
+            <div class="snap-slider-track">
+                {% for r in recommendations %}
+                    <div class="snap-product-card">
+                        <div class="snap-img-box">
+                            {% if r.image %}
+                                <a href="{{ url_for('product_details', product_id=r.id) }}">
+                                    <img src="{{ url_for('static', filename='uploads/' + r.image) }}" alt="{{ r.name }}" class="snap-card-img">
+                                </a>
+                            {% endif %}
+                            <span class="snap-card-rating">⭐️ {{ r.average_rating }}</span>
+                        </div>
+                        
+                        <div class="snap-card-body">
+                            <h4 class="snap-card-title">
+                                <a href="{{ url_for('product_details', product_id=r.id) }}">{{ r.name }}</a>
+                            </h4>
+                            <small class="snap-card-shop">{{ r.shop.name }}</small>
+                            
+                            <div class="snap-price-row flex-between">
+                                <span class="snap-card-price">₹ {{ r.price }}</span>
+                                <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" style="margin:0;">
+                                    <input type="hidden" name="quantity" value="1">
+                                    <input type="hidden" name="unit" value="{{ 'piece' if r.price_unit == 'piece' else 'kg' }}">
+                                    <button type="submit" class="btn snap-quick-btn" title="Add to Cart">+</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- =========================================
+         ACTIVE OFFERS CAROUSEL
+         ========================================= -->
+    {% if display_offers %}
+    <div class="shop-carousel-panel glass-panel mb-4">
+        <h3 class="slider-title-head" style="color: var(--secondary);">🔥 Exclusive Shop Deals</h3>
+        
+        <div class="carousel-viewport" id="offerCarousel">
+            <div class="carousel-slide-track" id="carouselTrack">
+                {% for o in display_offers %}
+                    <div class="carousel-slide-item {% if loop.first %}active{% endif %}">
+                        <div class="offer-banner-display">
+                            <img src="{{ url_for('static', filename='uploads/' + o.banner_image) }}" alt="Offer Banner" class="offer-banner-img">
+                            
+                            <div class="offer-banner-overlay">
+                                <div class="offer-meta-badge">{{ o.offer_type }}</div>
+                                <h2 class="offer-banner-title">{{ o.title }}</h2>
+                                <p class="offer-banner-desc">{{ o.description }}</p>
+                                
+                                <div class="offer-action-row">
+                                    <div class="offer-banner-percentage">{{ o.discount_percentage|int }}% OFF</div>
+                                    {% if o.coupon_code %}
+                                        <div class="offer-banner-coupon" onclick="copyCoupon('{{ o.coupon_code }}')">
+                                            COUPON: <code>{{ o.coupon_code }}</code> 📋
+                                        </div>
+                                    {% endif %}
+                                    <span class="offer-status-indicator active">🟢 ACTIVE DEAL</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if display_offers|length > 1 %}
+                <button class="carousel-control-btn prev" onclick="moveSlide(-1)">❮</button>
+                <button class="carousel-control-btn next" onclick="moveSlide(1)">❯</button>
+                
+                <div class="carousel-indicators">
+                    {% for o in display_offers %}
+                        <span class="carousel-dot {% if loop.first %}active{% endif %}" onclick="setSlide({{ loop.index0 }})"></span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- =========================================
+         HYBRID TAB VIEW
+         ========================================= -->
+    <div class="shop-tab-layout">
+        
+        <div class="tabs-header mb-4" style="justify-content: center; gap: 2rem;">
+            <button class="tab-btn active" onclick="switchShopTab('shop-products-tab', this)">🛍️ Store Products ({{ products|length }})</button>
+            <button class="tab-btn" onclick="switchShopTab('shop-feed-tab', this)">📢 Social Feed & Offers</button>
+            <button class="tab-btn" onclick="switchShopTab('shop-reviews-tab', this)">⭐️ Store Reviews</button>
+        </div>
+
+        <div class="tab-contents">
+            
+            <!-- TAB 1: PRODUCT LISTING -->
+            <div id="shop-products-tab" class="tab-pane active">
+                <div class="grid-cards">
+                    {% for p in products %}
+                        <div class="card product-marketplace-card">
+                            <div class="product-marketplace-img-box">
+                                {% if p.image %}
+                                    <a href="{{ url_for('product_details', product_id=p.id) }}">
+                                        <img src="{{ url_for('static', filename='uploads/' + p.image) }}" alt="{{ p.name }}" class="card-img" style="margin-bottom:0;">
+                                    </a>
+                                {% endif %}
+                                <span class="product-marketplace-rating">⭐️ {{ p.average_rating }}</span>
+                            </div>
+
+                            <div class="product-info">
+                                <div class="product-marketplace-meta">
+                                    <h3 class="product-marketplace-title">
+                                        <a href="{{ url_for('product_details', product_id=p.id) }}">{{ p.name }}</a>
+                                    </h3>
+                                    <p class="product-marketplace-desc">{{ p.description }}</p>
+                                </div>
+
+                                <div class="product-marketplace-buy">
+                                    <div class="product-marketplace-price-box">
+                                        <span class="product-marketplace-price">₹ {{ p.price }}</span>
+                                        <small class="product-marketplace-unit">/ {{ p.price_unit }}</small>
+                                    </div>
+                                    
+                                    <form action="{{ url_for('add_to_cart', product_id=p.id) }}" method="POST" class="product-marketplace-form">
+                                        <div class="qty-unit-inputs">
+                                            <input type="number" name="quantity" value="1" min="0.001" step="any" required class="qty-field">
+                                            {% if p.price_unit == 'piece' %}
+                                                <select name="unit" required class="unit-field">
+                                                    <option value="piece">pcs</option>
+                                                </select>
+                                            {% else %}
+                                                <select name="unit" required class="unit-field">
+                                                    <option value="g">g</option>
+                                                    <option value="kg" selected>kg</option>
+                                                </select>
+                                            {% endif %}
+                                        </div>
+                                        <button type="submit" class="btn w-100" style="padding:0.5rem; font-size:0.85rem;">Add to Cart</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="empty-state text-center py-5 glass-panel" style="grid-column: 1 / -1;">
+                            <span style="font-size: 3rem;">📦</span>
+                            <h4 class="mt-3">No Products Found</h4>
+                            <p>This store hasn't added any products yet.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- TAB 2: SOCIAL FEED & EXPIRED OFFERS -->
+            <div id="shop-feed-tab" class="tab-pane">
+                <div class="shop-feed-timeline" style="max-width: 700px; margin: 0 auto; display: flex; flex-direction:column; gap: 1.5rem;">
+                    
+                    <!-- NEW POSTS & OFFERS FEED -->
+                    {% if posts or display_offers %}
+                        
+                        <!-- Loop through active offers first (standard card format) -->
+                        {% for o in display_offers %}
+                            <div class="feed-card glass-panel">
+                                <div class="feed-card-header">
+                                    <div class="feed-shop-meta">
+                                        {% if shop.logo %}
+                                            <img src="{{ url_for('static', filename='uploads/' + shop.logo) }}" alt="Logo" class="feed-shop-logo">
+                                        {% else %}
+                                            <div class="feed-shop-logo default-shop-logo">{{ shop.name[0]|upper }}</div>
+                                        {% endif %}
+                                        <div>
+                                            <span class="feed-shop-name">{{ shop.name }}</span>
+                                            <span class="feed-item-time">{{ o.created_at.strftime('%d %b, %Y') }}</span>
+                                        </div>
+                                    </div>
+                                    <span class="feed-badge badge-offer">🏷️ ACTIVE CAMPAIGN - {{ o.offer_type }}</span>
+                                </div>
+
+                                <div class="feed-card-body mt-3">
+                                    <h4 class="feed-card-title">{{ o.title }}</h4>
+                                    <div class="feed-offer-details mt-2 mb-2">
+                                        <div class="feed-offer-percentage" style="color: var(--secondary);">{{ o.discount_percentage|int }}% OFF</div>
+                                        <p class="feed-card-desc">{{ o.description }}</p>
+                                        
+                                        {% if o.coupon_code %}
+                                            <div class="feed-coupon-badge" onclick="copyCoupon('{{ o.coupon_code }}')">
+                                                COUPON: <code>{{ o.coupon_code }}</code> 📋
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <img src="{{ url_for('static', filename='uploads/' + o.banner_image) }}" alt="Banner" class="feed-offer-banner">
+                                </div>
+                            </div>
+                        {% endfor %}
+
+                        <!-- General posts -->
+                        {% for p in posts %}
+                            <div class="feed-card glass-panel">
+                                <div class="feed-card-header">
+                                    <div class="feed-shop-meta">
+                                        {% if shop.logo %}
+                                            <img src="{{ url_for('static', filename='uploads/' + shop.logo) }}" alt="Logo" class="feed-shop-logo">
+                                        {% else %}
+                                            <div class="feed-shop-logo default-shop-logo">{{ shop.name[0]|upper }}</div>
+                                        {% endif %}
+                                        <div>
+                                            <span class="feed-shop-name">{{ shop.name }}</span>
+                                            <span class="feed-item-time">{{ p.created_at.strftime('%d %b, %Y') }}</span>
+                                        </div>
+                                    </div>
+                                    <span class="feed-badge badge-post">📢 ANNOUNCEMENT</span>
+                                </div>
+
+                                <div class="feed-card-body mt-3">
+                                    <h4 class="feed-card-title">{{ p.title }}</h4>
+                                    <p class="feed-card-desc mt-2" style="font-size:0.95rem; line-height:1.5;">{{ p.content }}</p>
+                                    {% if p.image %}
+                                        <img src="{{ url_for('static', filename='uploads/' + p.image) }}" alt="Post Media" class="feed-post-img">
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+
+                    {% else %}
+                        <div class="empty-state text-center py-5 glass-panel">
+                            <span style="font-size: 3rem;">📢</span>
+                            <h4 class="mt-3">Feed is Empty</h4>
+                            <p>This shop hasn't made any announcements or posts yet.</p>
+                        </div>
+                    {% endif %}
+
+                    <!-- FADED EXPIRED OFFERS SECTION -->
+                    {% if expired_offers %}
+                        <div class="expired-offers-section mt-4 pt-4" style="border-top:1px dashed rgba(255,255,255,0.1);">
+                            <h3 class="slider-title-head" style="color:var(--text-muted); opacity: 0.7; font-size:1.25rem;">⏳ Expired Campaigns</h3>
+                            <div class="expired-offers-list" style="display:flex; flex-direction:column; gap:1rem; opacity: 0.5;">
+                                {% for eo in expired_offers %}
+                                    <div class="feed-card glass-panel" style="padding: 1rem !important;">
+                                        <div class="flex-between">
+                                            <h4 style="margin:0; font-size: 1.05rem;">{{ eo.title }}</h4>
+                                            <span class="badge" style="background:rgba(239, 68, 68, 0.1); color: var(--danger); border:1px solid rgba(239, 68, 68, 0.2);">Expired Deal</span>
+                                        </div>
+                                        <p style="font-size:0.85rem; margin: 0.5rem 0;">{{ eo.description }}</p>
+                                        <small style="color:var(--text-muted);">Validity: {{ eo.start_date.strftime('%d %b') }} - {{ eo.end_date.strftime('%d %b, %Y') }}</small>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                </div>
+            </div>
+
+            <!-- TAB 3: RATINGS & SUBMISSIONS -->
+            <div id="shop-reviews-tab" class="tab-pane">
+                <div style="max-width: 600px; margin: 0 auto; display: flex; flex-direction:column; gap: 1.5rem;">
+                    
+                    <!-- RATE STORE FORM -->
+                    {% if current_user.role == 'customer' %}
+                        <div class="glass-panel text-center">
+                            <h3>⭐ What is your experience with {{ shop.name }}?</h3>
+                            <p style="font-size:0.9rem;">Submit your star rating to help other shoppers in the community discover this mart.</p>
+                            
+                            <form action="{{ url_for('rate_shop', shop_id=shop.id) }}" method="POST" class="rating-form mt-2" style="display: flex; justify-content: center; gap: 0.8rem; align-items: center; max-width: 400px; margin: 1.5rem auto 0;">
+                                <label style="margin: 0; font-weight:600;">Rate Shop:</label>
+                                <select name="rating" style="width: auto; padding: 0.5rem 1.5rem; font-size: 0.95rem; border-radius: 8px;">
+                                    <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                                    <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                                    <option value="3">⭐⭐⭐ (3/5)</option>
+                                    <option value="2">⭐⭐ (2/5)</option>
+                                    <option value="1">⭐ (1/5)</option>
+                                </select>
+                                <button type="submit" class="btn" style="padding: 0.5rem 1.5rem;">Submit</button>
+                            </form>
+                        </div>
+                    {% endif %}
+
+                    <!-- REVIEWS LIST -->
+                    <div class="glass-panel">
+                        <h3 class="mb-3">Reviews & Community Ratings</h3>
+                        {% if ratings %}
+                            <div class="reviews-list" style="display:flex; flex-direction:column; gap:1rem;">
+                                {% for r in ratings %}
+                                    <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); padding:1rem; border-radius:12px;" class="flex-between">
+                                        <div>
+                                            <span style="font-weight:600; font-size:0.95rem; display:block;">Community Member</span>
+                                            <small style="color:var(--text-muted);">Verified Shopper</small>
+                                        </div>
+                                        <div>
+                                            {% if r.rating == 5 %}⭐⭐⭐⭐⭐{% elif r.rating == 4 %}⭐⭐⭐⭐{% elif r.rating == 3 %}⭐⭐⭐{% elif r.rating == 2 %}⭐⭐{% else %}⭐{% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p style="color:var(--text-muted); text-align:center;" class="py-4">No community reviews submitted yet. Be the first!</p>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
 
     </div>
-    {% endfor %}
 
 </div>
+
+<!-- CAROUSEL ANIMATOR SCRIPTS -->
+<script>
+let currentSlideIndex = 0;
+const slides = document.querySelectorAll('.carousel-slide-item');
+const dots = document.querySelectorAll('.carousel-dot');
+
+function showSlide(index) {
+    if (slides.length === 0) return;
+    
+    if (index >= slides.length) { currentSlideIndex = 0; }
+    else if (index < 0) { currentSlideIndex = slides.length - 1; }
+    else { currentSlideIndex = index; }
+
+    slides.forEach((slide, idx) => {
+        slide.classList.remove('active');
+        if (dots[idx]) dots[idx].classList.remove('active');
+    });
+
+    slides[currentSlideIndex].classList.add('active');
+    if (dots[currentSlideIndex]) dots[currentSlideIndex].classList.add('active');
+}
+
+function moveSlide(step) {
+    showSlide(currentSlideIndex + step);
+}
+
+function setSlide(index) {
+    showSlide(index);
+}
+
+// Auto Slide every 5 seconds
+if(slides.length > 1) {
+    setInterval(() => {
+        moveSlide(1);
+    }, 5000);
+}
+
+function switchShopTab(tabId, btnElement) {
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    tabPanes.forEach(pane => pane.classList.remove('active'));
+
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => btn.classList.remove('active'));
+
+    document.getElementById(tabId).classList.add('active');
+    btnElement.classList.add('active');
+}
+
+function copyCoupon(code) {
+    navigator.clipboard.writeText(code).then(() => {
+        alert("Coupon code '" + code + "' copied to clipboard! 📋");
+    });
+}
+</script>
+
+<style>
+/* SHOP STYLING SCHEMES */
+.shop-products-container {
+    width:100%;
+}
+
+.shop-cover-wrapper {
+    width:100%;
+    height: 200px;
+    border-radius:24px;
+    overflow:hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.shop-cover-banner {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.default-shop-banner {
+    background: linear-gradient(135deg, var(--primary-glow), var(--secondary-glow));
+}
+
+.shop-profile-card {
+    margin-top:-40px;
+    position:relative;
+    z-index: 5;
+    padding:1.5rem 2rem !important;
+}
+
+.shop-profile-main {
+    display:flex;
+    align-items:center;
+    gap: 2rem;
+}
+
+.shop-logo-container {
+    margin-top: -60px;
+}
+
+.shop-profile-logo {
+    width:110px;
+    height:110px;
+    border-radius:20px;
+    object-fit:cover;
+    border:4px solid var(--bg-dark);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+
+.default-logo-box {
+    background: var(--secondary);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:2.85rem;
+    font-weight:700;
+}
+
+.shop-profile-details {
+    flex-grow:1;
+}
+
+.shop-title-row {
+    display:flex;
+    align-items:center;
+    gap: 1.25rem;
+}
+
+.shop-name-title {
+    font-size: 1.75rem;
+    margin:0;
+}
+
+.shop-code-tag {
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--primary);
+    border:1px solid rgba(56, 189, 248, 0.3);
+    padding:0.2rem 0.6rem;
+    border-radius:6px;
+    font-size: 0.75rem;
+    font-weight:700;
+}
+
+.shop-cat-line {
+    font-size:0.85rem;
+    color: var(--text-muted);
+    margin: 0.3rem 0;
+}
+
+.shop-tagline-line {
+    font-size:0.95rem;
+    color: rgba(255,255,255,0.95);
+    margin:0;
+}
+
+.shop-action-zone {
+    text-align:center;
+    min-width: 150px;
+}
+
+.btn-connected-glow {
+    background: linear-gradient(135deg, var(--success), #059669);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.btn-connected-glow:hover {
+    background: linear-gradient(135deg, #34d399, var(--success));
+}
+
+.shop-stats-row {
+    display:flex;
+    justify-content:space-around;
+    align-items:center;
+    text-align:center;
+}
+
+.shop-stat-col {
+    flex:1;
+}
+
+.shop-stat-val {
+    font-size:1.5rem;
+    font-weight:700;
+    color: var(--primary);
+    display:block;
+}
+
+.shop-stat-lbl {
+    font-size:0.75rem;
+    color: var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* COMPACT HORIZONTAL RECOMMENDATION SLIDER */
+.recommendation-slider-panel {
+    padding:1.5rem !important;
+}
+
+.slider-title-head {
+    font-size: 1.2rem;
+    margin-bottom:1rem;
+}
+
+.snap-slider-container {
+    width:100%;
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+}
+
+.snap-slider-container::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+.snap-slider-track {
+    display: flex;
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+.snap-product-card {
+    flex: 0 0 170px;
+    scroll-snap-align: start;
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.6));
+    border: 1px solid var(--card-border);
+    border-radius:14px;
+    padding:0.75rem;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    transition: all 0.3s ease;
+}
+
+.snap-product-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(56, 189, 248, 0.2);
+}
+
+.snap-img-box {
+    position:relative;
+    width:100%;
+    height: 100px;
+    border-radius:10px;
+    overflow:hidden;
+    background:rgba(0,0,0,0.2);
+}
+
+.snap-card-img {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.snap-card-rating {
+    position:absolute;
+    top:5px;
+    right:5px;
+    font-size:0.65rem;
+    background:rgba(15, 23, 42, 0.85);
+    border:1px solid rgba(255,255,255,0.1);
+    color: var(--warning);
+    padding:0.15rem 0.3rem;
+    border-radius:4px;
+    font-weight:700;
+}
+
+.snap-card-body {
+    margin-top:0.5rem;
+}
+
+.snap-card-title {
+    font-size:0.85rem;
+    font-weight:600;
+    margin:0;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.snap-card-title a {
+    color:#fff !important;
+}
+
+.snap-card-title a:hover {
+    color: var(--primary) !important;
+}
+
+.snap-card-shop {
+    display:block;
+    font-size:0.7rem;
+    color:var(--text-muted);
+    margin-top: 0.15rem;
+}
+
+.snap-price-row {
+    margin-top:0.4rem;
+    align-items:center;
+}
+
+.snap-card-price {
+    font-size:0.95rem;
+    font-weight:700;
+    color: var(--primary);
+}
+
+.snap-quick-btn {
+    width:24px;
+    height:24px;
+    border-radius:50%;
+    padding:0 !important;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:0.9rem;
+    box-shadow:none !important;
+}
+
+/* EXCLUSIVE DEALS CAROUSEL */
+.shop-carousel-panel {
+    padding:1.5rem !important;
+}
+
+.carousel-viewport {
+    position:relative;
+    width:100%;
+    height:250px;
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+.carousel-slide-track {
+    width:100%;
+    height:100%;
+    position:relative;
+}
+
+.carousel-slide-item {
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    opacity:0;
+    visibility:hidden;
+    transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+.carousel-slide-item.active {
+    opacity:1;
+    visibility:visible;
+}
+
+.offer-banner-display {
+    width:100%;
+    height:100%;
+    position:relative;
+}
+
+.offer-banner-img {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.offer-banner-overlay {
+    position:absolute;
+    bottom:0;
+    left:0;
+    width:100%;
+    padding:1.5rem 2rem;
+    background: linear-gradient(to top, rgba(9,9,11,0.95), rgba(9,9,11,0.4), transparent);
+    color:#fff;
+}
+
+.offer-meta-badge {
+    display:inline-block;
+    background:var(--secondary);
+    color:#fff;
+    font-size:0.7rem;
+    font-weight:700;
+    padding:0.2rem 0.6rem;
+    border-radius:6px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    margin-bottom:0.4rem;
+}
+
+.offer-banner-title {
+    font-size:1.6rem;
+    margin:0 0 0.3rem 0;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+.offer-banner-desc {
+    font-size:0.9rem;
+    color: rgba(255,255,255,0.85);
+    margin:0 0 0.8rem 0;
+    max-width: 600px;
+}
+
+.offer-action-row {
+    display:flex;
+    align-items:center;
+    gap:1.25rem;
+    flex-wrap:wrap;
+}
+
+.offer-banner-percentage {
+    font-size:1.5rem;
+    font-weight:800;
+    color: var(--primary);
+}
+
+.offer-banner-coupon {
+    background:rgba(255,255,255,0.1);
+    border:1px dashed rgba(255,255,255,0.3);
+    padding: 0.25rem 0.8rem;
+    border-radius: 6px;
+    font-size:0.85rem;
+    cursor:pointer;
+    transition: all 0.2s ease;
+}
+
+.offer-banner-coupon:hover {
+    background:rgba(255,255,255,0.2);
+}
+
+.offer-status-indicator {
+    font-size:0.75rem;
+    font-weight:700;
+}
+
+.carousel-control-btn {
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    background:rgba(15,23,42,0.6);
+    backdrop-filter:blur(5px);
+    border:1px solid rgba(255,255,255,0.1);
+    color:#fff;
+    width:36px;
+    height:36px;
+    border-radius:50%;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.1rem;
+    z-index: 10;
+}
+
+.carousel-control-btn:hover { background:rgba(15,23,42,0.8); }
+.carousel-control-btn.prev { left:15px; }
+.carousel-control-btn.next { right:15px; }
+
+.carousel-indicators {
+    position:absolute;
+    bottom:10px;
+    right:20px;
+    display:flex;
+    gap:0.4rem;
+    z-index: 10;
+}
+
+.carousel-dot {
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.3);
+    cursor:pointer;
+}
+
+.carousel-dot.active {
+    background: var(--primary);
+    box-shadow: 0 0 5px var(--primary-glow);
+}
+
+/* PREMIUM PRODUCT MARKETPLACE CARD */
+.product-marketplace-card {
+    padding: 0.75rem !important;
+}
+
+.product-marketplace-img-box {
+    position:relative;
+    width:100%;
+    height: 160px;
+    border-radius:12px;
+    overflow:hidden;
+    background:rgba(0,0,0,0.2);
+}
+
+.product-marketplace-rating {
+    position:absolute;
+    top:8px;
+    right:8px;
+    font-size:0.75rem;
+    background:rgba(15, 23, 42, 0.85);
+    border:1px solid rgba(255,255,255,0.1);
+    color: var(--warning);
+    padding:0.2rem 0.5rem;
+    border-radius:6px;
+    font-weight:700;
+}
+
+.product-marketplace-meta {
+    margin-top:0.8rem;
+    flex-grow:1;
+}
+
+.product-marketplace-title {
+    font-size: 1.15rem;
+    margin-bottom: 0.2rem;
+}
+
+.product-marketplace-title a {
+    color:#fff !important;
+}
+
+.product-marketplace-title a:hover {
+    color:var(--primary) !important;
+}
+
+.product-marketplace-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height:1.4;
+    height: 38px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.product-marketplace-buy {
+    margin-top:0.8rem;
+}
+
+.product-marketplace-price-box {
+    margin-bottom:0.5rem;
+}
+
+.product-marketplace-price {
+    font-size:1.4rem;
+    font-weight:800;
+    color: var(--primary);
+}
+
+.product-marketplace-unit {
+    color: var(--text-muted);
+    font-size:0.8rem;
+}
+
+.product-marketplace-form {
+    display:flex;
+    flex-direction:column;
+    gap:0.4rem;
+}
+
+.qty-unit-inputs {
+    display:flex;
+    gap:0.3rem;
+}
+
+.qty-field {
+    width: 65px !important;
+    padding:0.4rem !important;
+    font-size:0.85rem !important;
+}
+
+.unit-field {
+    flex:1;
+    padding:0.4rem !important;
+    font-size:0.85rem !important;
+    border-radius:12px;
+}
+
+/* RESPONSIVE OVERRIDES */
+@media (max-width: 768px) {
+    .shop-profile-main {
+        flex-direction:column;
+        align-items:center;
+        text-align:center;
+        gap: 1rem;
+    }
+    .shop-logo-container {
+        margin-top: -55px;
+    }
+    .shop-title-row {
+        justify-content:center;
+        flex-direction:column;
+        gap:0.4rem;
+    }
+    .carousel-viewport {
+        height:280px;
+    }
+    .offer-banner-title {
+        font-size:1.35rem;
+    }
+    .offer-banner-overlay {
+        padding: 1rem;
+    }
+    .offer-action-row {
+        gap:0.6rem;
+    }
+    .mobile-stack {
+        grid-template-columns:1fr !important;
+    }
+}
+</style>
 
 {% endblock %}
