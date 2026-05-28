@@ -1,23 +1,527 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Select Shop</h2>
 
-<form action="{{ url_for('shop_list') }}" method="GET" class="form-group flex-between" style="max-width: 600px; margin: 0 auto 2rem;">
-    <input type="text" name="q" placeholder="Search shops..." value="{{ search_query or '' }}" style="flex: 1; margin-right: 1rem;">
-    <button type="submit" class="btn">Search</button>
-</form>
-
-<div class="grid-cards">
-{% for shop in shops %}
-<div class="card">
-    <div class="flex-between mb-2">
-        <h3 class="card-title" style="margin-bottom: 0;">{{ shop.name }}</h3>
-        <span class="badge rating-badge">⭐️ {{ shop.average_rating }}</span>
+<!-- GEOLOCATION BANNER & SEARCH -->
+<div class="glass-panel mb-4" style="animation: pageLoad 0.5s ease-out; padding: 1.5rem !important;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div>
+            <h2 style="margin:0; color:#fff; display:flex; align-items:center; gap:0.5rem;">
+                <span class="animated-pulse-dot" style="background:var(--primary); box-shadow:0 0 10px var(--primary-glow);"></span>
+                Marketplace Discovery Hub
+            </h2>
+            <p style="margin:0; font-size:0.85rem; color:var(--text-muted);" class="mt-1" id="gpsStatusText">
+                📡 GPS Geolocation Offline. Click "Find Nearby" to unlock proximity-based delivery sorting.
+            </p>
+        </div>
+        
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+            <button id="customerGPSBtn" class="btn" style="padding: 0.6rem 1.2rem; font-size: 0.85rem; border-radius:10px;">📍 Find Nearby Shops</button>
+            <button id="toggleMapBtn" class="btn btn-secondary" style="padding: 0.6rem 1.2rem; font-size: 0.85rem; border-radius:10px; display:none;">🗺️ Show Map View</button>
+        </div>
     </div>
-    <p class="mb-2">{{ shop.address }}</p>
-    <p class="mb-3"><b>Code:</b> <span class="badge Accepted">{{ shop.shop_code }}</span></p>
-    <a class="btn" href="{{ url_for('shop_products', shop_id=shop.id) }}">Enter Shop</a>
+    
+    <form action="{{ url_for('shop_list') }}" method="GET" class="mt-3" style="margin-bottom:0; display:flex; gap:0.5rem;">
+        <input type="text" name="q" placeholder="Search verified stores, categories, food, groceries..." value="{{ search_query or '' }}" style="flex: 1; border-radius:12px; padding:0.75rem 1rem;">
+        <button type="submit" class="btn" style="border-radius:12px; padding:0 1.5rem;">Search</button>
+    </form>
 </div>
-{% endfor %}
+
+<!-- GOOGLE MAPS WRAPPER -->
+<div id="mapContainer" class="glass-panel mb-4" style="height:380px; border-radius:20px; overflow:hidden; border:1px solid rgba(255,255,255,0.08); padding:0 !important; display:none; animation: slideIn 0.4s ease;">
+    <div id="nearbyShopsMap" style="width:100%; height:100%;"></div>
 </div>
+
+<!-- ROUTE PREVIEW PANEL (IN-APP NAVIGATION OVERLAY) -->
+<div id="routeNavPanel" class="glass-panel mb-4" style="border:1px solid var(--primary-glow); background:rgba(9, 9, 11, 0.9); padding:1.25rem !important; display:none; animation: slideIn 0.3s ease;">
+    <div class="flex-between mb-2">
+        <h3 style="margin:0; font-size:1.1rem; color:#fff;" id="navTargetShop">🗺️ Navigating to Shop</h3>
+        <button class="close-modal-btn" onclick="closeRouteNavigation()" style="font-size:1.1rem;">✕ Close Route</button>
+    </div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:1rem;" class="mobile-stack text-center mb-3">
+        <div style="background:rgba(255,255,255,0.02); padding:0.75rem; border-radius:10px;">
+            <small style="color:var(--text-muted); display:block; font-size:0.7rem; text-transform:uppercase;">Shortest Distance</small>
+            <span style="font-size:1.25rem; font-weight:700; color:var(--primary);" id="navDistance">-- km</span>
+        </div>
+        <div style="background:rgba(255,255,255,0.02); padding:0.75rem; border-radius:10px;">
+            <small style="color:var(--text-muted); display:block; font-size:0.7rem; text-transform:uppercase;">Estimated Time</small>
+            <span style="font-size:1.25rem; font-weight:700; color:var(--secondary);" id="navDuration">-- mins</span>
+        </div>
+        <div style="background:rgba(255,255,255,0.02); padding:0.75rem; border-radius:10px;">
+            <small style="color:var(--text-muted); display:block; font-size:0.7rem; text-transform:uppercase;">Route Integrity</small>
+            <span style="font-size:1.25rem; font-weight:700; color:var(--success);">🚀 Verified Path</span>
+        </div>
+    </div>
+</div>
+
+<!-- NEARBY RECOMMENDATIONS ROW -->
+<div id="nearbyDiscoverySection" style="display:none; animation: pageLoad 0.6s ease-out;">
+    <div class="mb-4">
+        <h3 style="color: var(--primary); font-size: 1.25rem; text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; gap:0.5rem;" class="mb-3">
+            📍 Shops Near You
+        </h3>
+        <div class="discovery-slider" id="shopsNearYouRow" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1.25rem;">
+            <!-- Sorted dynamically via JS Geolocation -->
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <h3 style="color: var(--secondary); font-size: 1.25rem; text-transform:uppercase; letter-spacing:0.05em;" class="mb-3">
+            ✨ Verified Shops Around You
+        </h3>
+        <div class="discovery-slider" id="verifiedShopsRow" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1.25rem;">
+            <!-- Filtered dynamically via JS Geolocation -->
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <h3 style="color: var(--success); font-size: 1.25rem; text-transform:uppercase; letter-spacing:0.05em;" class="mb-3">
+            ⚡ Fast Delivery Nearby (Under 3km)
+        </h3>
+        <div class="discovery-slider" id="fastDeliveryRow" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1.25rem;">
+            <!-- Filtered dynamically via JS Geolocation -->
+        </div>
+    </div>
+</div>
+
+<!-- DEFAULT SHOP LISTINGS (FALLBACK ON NO GPS) -->
+<div id="defaultShopSection">
+    <h3 style="font-size: 1.25rem; color:#fff;" class="mb-3">All Marketplace Stores</h3>
+    <div class="grid-cards">
+        {% for shop in shops %}
+        <div class="card shop-marketplace-card">
+            <div class="shop-card-banner">
+                {% if shop.banner_image %}
+                    <img src="{{ url_for('static', filename='uploads/' + shop.banner_image) }}" class="shop-banner-img">
+                {% else %}
+                    <div class="shop-banner-img default-banner"></div>
+                {% endif %}
+                
+                <div class="shop-badge-overlay">
+                    {% if shop.is_verified %}
+                        <span class="magical-verified-pill">❇️ VERIFIED</span>
+                    {% endif %}
+                    <span class="shop-category-badge">{{ shop.category }}</span>
+                </div>
+            </div>
+
+            <div style="padding: 1.25rem;">
+                <div class="flex-between mb-2">
+                    <h3 class="card-title" style="margin-bottom:0; font-size:1.15rem; color:#fff;">
+                        {{ shop.name }}
+                    </h3>
+                    <span class="badge rating-badge">⭐️ {{ shop.average_rating }}</span>
+                </div>
+                <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.4;" class="mb-2">📍 {{ shop.address }}</p>
+                <p style="font-size:0.85rem;" class="mb-3"><b>Shop Code:</b> <code>{{ shop.shop_code }}</code></p>
+                
+                <div style="display:flex; gap:0.4rem;">
+                    <a class="btn" href="{{ url_for('shop_products', shop_id=shop.id) }}" style="flex:1; border-radius:8px; padding:0.5rem;">Enter Store</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- EMBED SHOS LIVE COORDINATES & MAPPING MODULES -->
+<script>
+// JSON payload containing shop coordinates
+const shopsData = [
+    {% for shop in shops %}
+    {
+        id: {{ shop.id }},
+        name: "{{ shop.name }}",
+        category: "{{ shop.category }}",
+        address: "{{ shop.address }}",
+        rating: {{ shop.average_rating }},
+        is_verified: {{ 'true' if shop.is_verified else 'false' }},
+        banner: "{{ url_for('static', filename='uploads/' + shop.banner_image) if shop.banner_image else '' }}",
+        logo: "{{ url_for('static', filename='uploads/' + shop.logo) if shop.logo else '' }}",
+        lat: {% if shop.location_rel %}{{ shop.location_rel.latitude }}{% else %}null{% endif %},
+        lng: {% if shop.location_rel %}{{ shop.location_rel.longitude }}{% else %}null{% endif %},
+        url: "{{ url_for('shop_products', shop_id=shop.id) }}",
+        code: "{{ shop.shop_code }}"
+    },
+    {% endfor %}
+];
+
+let customerLat = null;
+let customerLng = null;
+let googleMap = null;
+let mapMarkers = [];
+let directionsRenderer = null;
+let directionsService = null;
+
+// Haversine proximity distance calculations
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // returns distance in km
+}
+
+function getTravelTime(distanceKm) {
+    // Assuming average city traffic speed of 25 km/h
+    const timeMins = (distanceKm / 25) * 60;
+    return timeMins < 1 ? 1 : Math.round(timeMins);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const gpsBtn = document.getElementById('customerGPSBtn');
+    
+    if(gpsBtn) {
+        gpsBtn.addEventListener('click', function() {
+            gpsBtn.innerText = '🛰️ Geolocating...';
+            
+            if(navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(pos) {
+                    customerLat = pos.coords.latitude;
+                    customerLng = pos.coords.longitude;
+                    
+                    // Cache customer logs on backend silently
+                    fetch('/api/gps/log', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ latitude: customerLat, longitude: customerLng })
+                    }).catch(e => {});
+
+                    gpsBtn.innerText = '📍 GPS Active';
+                    document.getElementById('gpsStatusText').innerHTML = `🟢 **GPS Coordinates Captured!** Located at [${customerLat.toFixed(4)}, ${customerLng.toFixed(4)}]. Proximity matching enabled.`;
+                    
+                    // Build Nearby rows
+                    renderNearbySections();
+                    
+                    // Show map buttons
+                    document.getElementById('toggleMapBtn').style.display = 'inline-block';
+                    
+                }, function(err) {
+                    alert('⚠️ Location access blocked. Please enable geolocation permissions in your browser settings.');
+                    gpsBtn.innerText = '📍 Find Nearby Shops';
+                }, {enableHighAccuracy: true, timeout: 8000});
+            } else {
+                alert('Geolocation services not supported by your browser.');
+            }
+        });
+    }
+
+    // Toggle Map button trigger
+    const mapBtn = document.getElementById('toggleMapBtn');
+    const mapBox = document.getElementById('mapContainer');
+    if(mapBtn && mapBox) {
+        mapBtn.addEventListener('click', function() {
+            if(mapBox.style.display === 'none') {
+                mapBox.style.display = 'block';
+                mapBtn.innerText = '🗺️ Hide Map View';
+                initNearbyShopsMap();
+            } else {
+                mapBox.style.display = 'none';
+                mapBtn.innerText = '🗺️ Show Map View';
+            }
+        });
+    }
+});
+
+function renderNearbySections() {
+    // Hide default list, show discovery slides
+    document.getElementById('defaultShopSection').style.display = 'none';
+    document.getElementById('nearbyDiscoverySection').style.display = 'block';
+
+    const rowNearYou = document.getElementById('shopsNearYouRow');
+    const rowVerified = document.getElementById('verifiedShopsRow');
+    const rowFast = document.getElementById('fastDeliveryRow');
+
+    rowNearYou.innerHTML = '';
+    rowVerified.innerHTML = '';
+    rowFast.innerHTML = '';
+
+    // Filter and compute distances
+    let calculatedShops = [];
+    shopsData.forEach(shop => {
+        if(shop.lat !== null && shop.lng !== null) {
+            const distance = calculateDistance(customerLat, customerLng, shop.lat, shop.lng);
+            const travelTime = getTravelTime(distance);
+            calculatedShops.push({ ...shop, distance: distance, time: travelTime });
+        }
+    });
+
+    // Sort by nearest first
+    calculatedShops.sort((a, b) => a.distance - b.distance);
+
+    if(calculatedShops.length === 0) {
+        rowNearYou.innerHTML = '<p style="color:var(--text-muted);">No geocoded shops found in database.</p>';
+        return;
+    }
+
+    calculatedShops.forEach(shop => {
+        const cardHTML = `
+        <div class="card shop-marketplace-card glass-panel" style="padding:0 !important; animation: pageLoad 0.5s ease; border: 1px solid rgba(255,255,255,0.06);">
+            <div class="shop-card-banner">
+                ${shop.banner ? `<img src="${shop.banner}" class="shop-banner-img">` : `<div class="shop-banner-img default-banner"></div>`}
+                <div class="shop-badge-overlay">
+                    ${shop.is_verified ? `<span class="magical-verified-pill">❇️ VERIFIED</span>` : ''}
+                    <span class="shop-category-badge">${shop.category}</span>
+                </div>
+            </div>
+            <div style="padding: 1.25rem;">
+                <div class="flex-between mb-2">
+                    <h4 style="margin:0; font-size:1.1rem; color:#fff;" class="card-title">${shop.name}</h4>
+                    <span class="badge rating-badge">⭐️ ${shop.rating}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 0.75rem; background:rgba(255,255,255,0.02); padding:0.4rem 0.8rem; border-radius:8px; font-size:0.8rem;">
+                    <span>📍 <b>${shop.distance.toFixed(1)} km</b> away</span>
+                    <span style="color:var(--primary);">⏱️ <b>${shop.time} mins</b> delivery</span>
+                </div>
+                <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.3;" class="mb-3">${shop.address}</p>
+                <div style="display:flex; gap:0.4rem;">
+                    <button class="btn btn-secondary" onclick="startRouteNavigation(${shop.lat}, ${shop.lng}, '${shop.name}')" style="border-radius:8px; padding:0.4rem 0.8rem; font-size:0.8rem;">🗺️ Route</button>
+                    <a class="btn" href="${shop.url}" style="flex:1; border-radius:8px; padding:0.4rem; font-size:0.8rem; text-align:center;">Enter Shop</a>
+                </div>
+            </div>
+        </div>
+        `;
+
+        // Populate row: Shops Near You
+        rowNearYou.insertAdjacentHTML('beforeend', cardHTML);
+
+        // Populate row: Verified
+        if (shop.is_verified) {
+            rowVerified.insertAdjacentHTML('beforeend', cardHTML);
+        }
+
+        // Populate row: Fast Delivery (dist < 3km)
+        if (shop.distance <= 3.0) {
+            rowFast.insertAdjacentHTML('beforeend', cardHTML);
+        }
+    });
+
+    if(rowVerified.innerHTML === '') {
+        rowVerified.innerHTML = '<p style="color:var(--text-muted);">No verified shops near your area.</p>';
+    }
+    if(rowFast.innerHTML === '') {
+        rowFast.innerHTML = '<p style="color:var(--text-muted);">No stores within fast delivery range (3km) currently.</p>';
+    }
+}
+
+// Google Maps Customer Interface Callback
+function initNearbyShopsMap() {
+    if (!customerLat || !customerLng) return;
+    
+    const centerLatLng = {lat: customerLat, lng: customerLng};
+
+    const mapOptions = {
+        zoom: 13,
+        center: centerLatLng,
+        styles: [
+            { elementType: "geometry", stylers: [{ color: "#0f172a" }] },
+            { elementType: "labels.text.stroke", stylers: [{ color: "#0f172a" }] },
+            { elementType: "labels.text.fill", stylers: [{ color: "#94a3b8" }] },
+            { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#334155" }] },
+            { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#cbd5e1" }] },
+            { featureType: "road", elementType: "geometry", stylers: [{ color: "#1e293b" }] },
+            { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#334155" }] },
+            { featureType: "water", elementType: "geometry", stylers: [{ color: "#020617" }] }
+        ]
+    };
+
+    const mapDiv = document.getElementById('nearbyShopsMap');
+    if (!mapDiv) return;
+
+    googleMap = new google.maps.Map(mapDiv, mapOptions);
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({
+        map: googleMap,
+        suppressMarkers: true,
+        polylineOptions: {
+            strokeColor: "#38bdf8",
+            strokeOpacity: 0.8,
+            strokeWeight: 5
+        }
+    });
+
+    // 1. Plot Customer Location Marker
+    const customerMarker = new google.maps.Marker({
+        position: centerLatLng,
+        map: googleMap,
+        title: "Your GPS Location",
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: "#38bdf8",
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2
+        }
+    });
+
+    // 2. Plot Shop markers
+    shopsData.forEach(shop => {
+        if(shop.lat !== null && shop.lng !== null) {
+            const shopLatLng = {lat: shop.lat, lng: shop.lng};
+            
+            // verified shop highlighted differently
+            const pinColor = shop.is_verified ? "#c084fc" : "#22c55e";
+            
+            const marker = new google.maps.Marker({
+                position: shopLatLng,
+                map: googleMap,
+                title: shop.name,
+                animation: google.maps.Animation.DROP,
+                icon: {
+                    path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+                    fillColor: pinColor,
+                    fillOpacity: 0.9,
+                    strokeColor: "#ffffff",
+                    strokeWeight: 1.5,
+                    scale: 1.4,
+                    anchor: new google.maps.Point(12, 22)
+                }
+            });
+
+            // Infowindow popup
+            const infowindow = new google.maps.InfoWindow({
+                content: `
+                <div style="color:var(--text-dark); padding:0.5rem; font-family:sans-serif;">
+                    <h4 style="margin:0;">${shop.name} ${shop.is_verified ? '☑️' : ''}</h4>
+                    <p style="margin:0.25rem 0; font-size:0.8rem; color:#475569;">${shop.category} | ⭐️ ${shop.rating}</p>
+                    <p style="margin:0.25rem 0; font-size:0.75rem; color:#64748b;">${shop.address}</p>
+                    <div style="display:flex; gap:0.25rem; margin-top:0.5rem;">
+                        <button onclick="startRouteNavigation(${shop.lat}, ${shop.lng}, '${shop.name}')" style="background:#38bdf8; border:none; color:#fff; padding:0.3rem 0.6rem; font-size:0.75rem; border-radius:4px; cursor:pointer;">🗺️ Navigate</button>
+                        <a href="${shop.url}" style="background:#f1f5f9; text-decoration:none; color:#0f172a; padding:0.3rem 0.6rem; font-size:0.75rem; border-radius:4px; display:inline-block; border:1px solid #cbd5e1;">Shop Now</a>
+                    </div>
+                </div>
+                `
+            });
+
+            marker.addListener('click', function() {
+                infowindow.open(googleMap, marker);
+            });
+
+            mapMarkers.push(marker);
+        }
+    });
+}
+
+function startRouteNavigation(shopLat, shopLng, shopName) {
+    if (!customerLat || !customerLng || !directionsService) return;
+
+    // Scroll smoothly to map container and open route panel
+    document.getElementById('mapContainer').style.display = 'block';
+    document.getElementById('toggleMapBtn').innerText = '🗺️ Hide Map View';
+    
+    if(!googleMap) {
+        initNearbyShopsMap();
+    }
+
+    const panel = document.getElementById('routeNavPanel');
+    panel.style.display = 'block';
+    document.getElementById('navTargetShop').innerHTML = `🗺️ Navigating to: <b>${shopName}</b>`;
+
+    const origin = new google.maps.LatLng(customerLat, customerLng);
+    const destination = new google.maps.LatLng(shopLat, shopLng);
+
+    const request = {
+        origin: origin,
+        destination: destination,
+        travelMode: 'DRIVING'
+    };
+
+    directionsService.route(request, function(result, status) {
+        if (status === 'OK') {
+            directionsRenderer.setDirections(result);
+            
+            // Extract stats
+            const route = result.routes[0].legs[0];
+            document.getElementById('navDistance').innerText = route.distance.text;
+            document.getElementById('navDuration').innerText = route.duration.text;
+            
+            // Adjust zoom
+            googleMap.setCenter(destination);
+            
+            // Scroll to navigation panel
+            panel.scrollIntoView({behavior: "smooth"});
+        } else {
+            alert('Could not compute mapping route: ' + status);
+        }
+    });
+}
+
+function closeRouteNavigation() {
+    document.getElementById('routeNavPanel').style.display = 'none';
+    if(directionsRenderer) {
+        directionsRenderer.setDirections({routes: []});
+    }
+}
+</script>
+
+<!-- CSS LAYOUT ADDITIONS FOR NEARBY ROW -->
+<style>
+.shop-marketplace-card {
+    border-radius: 20px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.shop-card-banner {
+    width: 100%;
+    height: 140px;
+    position: relative;
+}
+.shop-banner-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.shop-banner-img.default-banner {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(192, 132, 252, 0.15));
+}
+.shop-badge-overlay {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.magical-verified-pill {
+    background: linear-gradient(90deg, #c084fc, #38bdf8);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 99px;
+    box-shadow: 0 0 10px rgba(192,132,252,0.6);
+}
+.shop-category-badge {
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 99px;
+}
+.animated-pulse-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    animation: simplePulse 2s infinite ease-in-out;
+}
+@keyframes simplePulse {
+    0% { transform: scale(0.85); opacity: 0.6; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.85); opacity: 0.6; }
+}
+</style>
+
+{% if google_maps_api_key %}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places"></script>
+{% endif %}
+
 {% endblock %}

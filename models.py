@@ -264,4 +264,116 @@ class Wishlist(db.Model):
     user = db.relationship('User', backref='wishlist_items', lazy=True)
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(**kwargs)
+
+
+# ==========================================
+# VERIFIED SHOPS & GPS DISCOVERY MODELS
+# ==========================================
+
+class ShopLocation(db.Model):
+    __tablename__ = 'shop_location'
+
+    id = db.Column(db.Integer, primary_key=True)
+    shop_id = db.Column(db.Integer, db.ForeignKey('shop.id', ondelete='CASCADE'), nullable=False)
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    map_address = db.Column(db.String(300), nullable=True)
+
+    shop = db.relationship('Shop', backref=db.backref('location_rel', uselist=False, cascade="all, delete-orphan"))
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class ShopVerification(db.Model):
+    __tablename__ = 'shop_verification'
+
+    id = db.Column(db.Integer, primary_key=True)
+    shop_id = db.Column(db.Integer, db.ForeignKey('shop.id', ondelete='CASCADE'), nullable=False)
+    status = db.Column(db.String(20), default="Pending") # Pending, Under Review, Verified, Rejected
+    phone_number = db.Column(db.String(20), nullable=False)
+    gst_number = db.Column(db.String(50), nullable=True)
+    
+    # Image uploads filenames
+    front_image = db.Column(db.String(200), nullable=False)
+    inside_image = db.Column(db.String(200), nullable=False)
+    owner_photo = db.Column(db.String(200), nullable=False)
+    business_proof = db.Column(db.String(200), nullable=True)
+    submitted_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    shop = db.relationship('Shop', backref=db.backref('verification_rel', uselist=False, cascade="all, delete-orphan"))
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class PaymentMethods(db.Model):
+    __tablename__ = 'payment_methods'
+
+    id = db.Column(db.Integer, primary_key=True)
+    shop_id = db.Column(db.Integer, db.ForeignKey('shop.id', ondelete='CASCADE'), nullable=False)
+    upi_id = db.Column(db.String(100), nullable=True)
+    qr_image = db.Column(db.String(200), nullable=True)
+    gpay = db.Column(db.Boolean, default=False)
+    phonepe = db.Column(db.Boolean, default=False)
+    paytm = db.Column(db.Boolean, default=False)
+    cod = db.Column(db.Boolean, default=True)
+    bank_details = db.Column(db.String(500), nullable=True)
+
+    shop = db.relationship('Shop', backref=db.backref('payments_rel', uselist=False, cascade="all, delete-orphan"))
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class UPIPayments(db.Model):
+    __tablename__ = 'upi_payments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id', ondelete='CASCADE'), nullable=False)
+    transaction_id = db.Column(db.String(100), nullable=True)
+    screenshot = db.Column(db.String(200), nullable=False)
+    amount = db.Column(db.Float, nullable=True)
+    status = db.Column(db.String(30), default="Under Verification") # Pending, Paid, Failed, Under Verification
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    order = db.relationship('Order', backref=db.backref('upi_rel', uselist=False, cascade="all, delete-orphan"))
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class GPSLogs(db.Model):
+    __tablename__ = 'gps_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+# Add helper properties to Shop model to expose verification status smoothly
+@property
+def is_verified(self):
+    return self.verification_rel is not None and self.verification_rel.status == "Verified"
+
+@property
+def verification_status(self):
+    if not self.verification_rel:
+        return "Not Submitted"
+    return self.verification_rel.status
+
+@property
+def verified_badge(self):
+    if self.is_verified:
+        return "✨ <span class='verified-badge-magical' title='MiniMartPro Verified Shop'>☑️ Verified</span>"
+    return ""
+
+Shop.is_verified = is_verified
+Shop.verification_status = verification_status
+Shop.verified_badge = verified_badge

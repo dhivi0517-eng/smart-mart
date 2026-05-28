@@ -17,7 +17,35 @@
             </div>
 
             <p class="mb-1"><b>Customer:</b> {{ order.customer.username }} (ID: {{ order.customer_id }})</p>
-            <p class="mb-1"><b>Payment:</b> {{ order.payment_method }}</p>
+            <p class="mb-1"><b>Payment Method:</b> {{ order.payment_method }}</p>
+
+            <!-- UPI direct deposit screenshot proof -->
+            {% if order.upi_rel %}
+            <div style="background: rgba(192, 132, 252, 0.05); border: 1px solid rgba(192, 132, 252, 0.2); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem;">
+                <span style="color:var(--secondary); font-weight:600; display:block;" class="mb-1">⚡ UPI Direct Deposit Proof</span>
+                <span>UTR Code: <code>{{ order.upi_rel.transaction_id }}</code></span><br>
+                <span>Proof Status: <b style="color:var(--primary);">{{ order.upi_rel.status }}</b></span><br>
+                <div class="mt-2 text-center">
+                    <a href="{{ url_for('static', filename='uploads/' + order.upi_rel.screenshot) }}" target="_blank" style="display:inline-block; border:1px solid rgba(255,255,255,0.15); border-radius:6px; overflow:hidden;">
+                        <img src="{{ url_for('static', filename='uploads/' + order.upi_rel.screenshot) }}" style="max-height:80px; max-width:100%; object-fit:contain;">
+                    </a>
+                    <small style="display:block; color:var(--text-muted);" class="mt-1">Click to view receipt image</small>
+                </div>
+                
+                <!-- Manual payment actions if under verification -->
+                {% if order.upi_rel.status == 'Under Verification' %}
+                <div style="display:flex; gap:0.25rem; margin-top:0.75rem;">
+                    <form action="{{ url_for('owner_payment_reject', payment_id=order.upi_rel.id) }}" method="POST" style="flex:1; margin:0;">
+                        <button type="submit" class="btn" style="background:#ff4d4d; box-shadow:none; padding:0.35rem; font-size:0.75rem; width:100%; border-radius:6px;">Reject Pay</button>
+                    </form>
+                    <form action="{{ url_for('owner_payment_approve', payment_id=order.upi_rel.id) }}" method="POST" style="flex:1; margin:0;">
+                        <button type="submit" class="btn" style="padding:0.35rem; font-size:0.75rem; width:100%; border-radius:6px;">Approve Pay</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
             <p class="mb-3"><b>Total:</b> <span class="card-price" style="font-size:1.1rem;">₹ {{ order.total }}</span></p>
 
             <hr style="border:none; border-top:1px solid var(--card-border); margin:1rem 0;">

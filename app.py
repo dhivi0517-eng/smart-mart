@@ -361,6 +361,151 @@ def profile_edit():
 
     return render_template("profile_edit.html", customization=customization, shop=shop)
 
+# ==========================================
+# SHOP VERIFICATION & LOCATION ROUTES
+# ==========================================
+@app.route('/owner/verification', methods=['GET'])
+@login_required
+def owner_verification():
+    if current_user.role != 'owner':
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+        
+    shop = Shop.query.filter_by(owner_id=current_user.id).first()
+    if not shop:
+        flash("Setup your store first! 🏪")
+        return redirect(url_for('owner_dashboard'))
+
+    verification = ShopVerification.query.filter_by(shop_id=shop.id).first()
+    location = ShopLocation.query.filter_by(shop_id=shop.id).first()
+
+    return render_template(
+        "verification.html", 
+        shop=shop, 
+        verification=verification, 
+        location=location,
+        status=shop.verification_status
+    )
+
+@app.route('/owner/verification/submit', methods=['POST'])
+@login_required
+def owner_verification_submit():
+    if current_user.role != 'owner':
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+        
+    shop = Shop.query.filter_by(owner_id=current_user.id).first()
+    if not shop:
+        flash("Setup your store first! 🏪")
+        return redirect(url_for('owner_dashboard'))
+
+    phone_number = request.form.get('phone_number')
+    gst_number = request.form.get('gst_number')
+    latitude = request.form.get('latitude')
+    longitude = request.form.get('longitude')
+    map_address = request.form.get('map_address')
+
+    try:
+        lat = float(latitude) if latitude else 13.0827
+        lng = float(longitude) if longitude else 80.2707
+    except ValueError:
+        flash("Invalid lat/lng coordinates entered ❌")
+        return redirect(url_for('owner_verification'))
+
+    # Retrieve or create verification record
+    verification = ShopVerification.query.filter_by(shop_id=shop.id).first()
+    if not verification:
+        verification = ShopVerification(shop_id=shop.id, phone_number=phone_number)
+        db.session.add(verification)
+
+    verification.phone_number = phone_number
+    verification.gst_number = gst_number
+    verification.status = "Under Review" # Transitions back to review on edits
+
+    # Save coordinate location records
+    location = ShopLocation.query.filter_by(shop_id=shop.id).first()
+    if not location:
+        location = ShopLocation(shop_id=shop.id, latitude=lat, longitude=lng)
+        db.session.add(location)
+
+    location.latitude = lat
+    location.longitude = lng
+    location.map_address = map_address
+
+    # Handle multiple image file uploads
+    for file_key in ['front_image', 'inside_image', 'owner_photo', 'business_proof']:
+        f = request.files.get(file_key)
+        if f and f.filename != "":
+            filename = secure_filename(f.filename)
+            filename = f"verify_{shop.id}_{file_key}_{filename}"
+            f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            setattr(verification, file_key, filename)
+
+    db.session.commit()
+    flash("Verification credentials submitted successfully! Under active review. ⏱️")
+    return redirect(url_for('profile'))
+
+
+# ==========================================
+# OWNER PAYMENT SETTINGS ROUTE
+# ==========================================
+@app.route('/owner/payment_settings', methods=['GET'])
+@login_required
+def owner_payment_settings():
+    if current_user.role != 'owner':
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+        
+    shop = Shop.query.filter_by(owner_id=current_user.id).first()
+    if not shop:
+        flash("Setup your store first! 🏪")
+        return redirect(url_for('owner_dashboard'))
+
+    payment = PaymentMethods.query.filter_by(shop_id=shop.id).first()
+    return render_template("payment_settings.html", shop=shop, payment=payment)
+
+@app.route('/owner/payment_settings/submit', methods=['POST'])
+@login_required
+def owner_payment_settings_submit():
+    if current_user.role != 'owner':
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+        
+    shop = Shop.query.filter_by(owner_id=current_user.id).first()
+    if not shop:
+        flash("Setup your store first! 🏪")
+        return redirect(url_for('owner_dashboard'))
+
+    upi_id = request.form.get('upi_id')
+    bank_details = request.form.get('bank_details')
+    gpay = request.form.get('gpay') == 'y'
+    phonepe = request.form.get('phonepe') == 'y'
+    paytm = request.form.get('paytm') == 'y'
+    cod = request.form.get('cod') == 'y'
+
+    payment = PaymentMethods.query.filter_by(shop_id=shop.id).first()
+    if not payment:
+        payment = PaymentMethods(shop_id=shop.id)
+        db.session.add(payment)
+
+    payment.upi_id = upi_id
+    payment.bank_details = bank_details
+    payment.gpay = gpay
+    payment.phonepe = phonepe
+    payment.paytm = paytm
+    payment.cod = cod
+
+    qr_image = request.files.get('qr_image')
+    if qr_image and qr_image.filename != "":
+        filename = secure_filename(qr_image.filename)
+        filename = f"qr_{shop.id}_{filename}"
+        qr_image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        payment.qr_image = filename
+
+    db.session.commit()
+    flash("Checkout Payment Settings updated successfully! 💳")
+    return redirect(url_for('profile'))
+
 @app.route('/wishlist/toggle/<int:product_id>', methods=['POST', 'GET'])
 @login_required
 def toggle_wishlist(product_id):
@@ -565,8 +710,37 @@ def admin_dashboard():
     users = User.query.all()
     shops = Shop.query.all()
     orders = Order.query.all()
+    verifications = ShopVerification.query.all()
 
-    return render_template("admin_dashboard.html", users=users, shops=shops, orders=orders)
+    return render_template("admin_dashboard.html", users=users, shops=shops, orders=orders, verifications=verifications)
+
+
+@app.route('/admin/verification/approve/<int:verification_id>', methods=['POST'])
+@login_required
+def admin_verification_approve(verification_id):
+    if current_user.role != "admin":
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+        
+    verification = ShopVerification.query.get_or_404(verification_id)
+    verification.status = "Verified"
+    db.session.commit()
+    flash(f"Shop '{verification.shop.name}' has been successfully verified! ✨")
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/verification/reject/<int:verification_id>', methods=['POST'])
+@login_required
+def admin_verification_reject(verification_id):
+    if current_user.role != "admin":
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+        
+    verification = ShopVerification.query.get_or_404(verification_id)
+    verification.status = "Rejected"
+    db.session.commit()
+    flash(f"Verification request for '{verification.shop.name}' was rejected.")
+    return redirect(url_for('admin_dashboard'))
 
 
 
@@ -575,6 +749,13 @@ def admin_dashboard():
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+
+@app.context_processor
+def inject_google_maps_api_key():
+    return {
+        'google_maps_api_key': os.environ.get("GOOGLE_MAPS_API_KEY", "")
+    }
 
 
 # ================= HOME =================
@@ -1072,6 +1253,7 @@ def cart():
     items = []
     total = 0
     cart_product_ids = []
+    shop = None
 
     for pid, qty in cart.items():
         product = db.session.get(Product, int(pid))
@@ -1081,6 +1263,10 @@ def cart():
         cart_product_ids.append(int(pid))
         subtotal = product.price * qty
         total += subtotal
+
+        # Set shop from the first item
+        if not shop:
+            shop = product.shop
 
         items.append({
             'product': product,
@@ -1094,7 +1280,7 @@ def cart():
         print(f"Error getting recommendations: {e}")
         recommendations = []
 
-    return render_template("cart.html", items=items, total=total, recommendations=recommendations)
+    return render_template("cart.html", items=items, total=total, recommendations=recommendations, shop=shop)
 
 @app.route('/owner_orders')
 @login_required
@@ -1107,6 +1293,41 @@ def owner_orders():
 
     return render_template("owner_orders.html", orders=orders)
 
+# ==========================================
+# OWNER PAYMENT VERIFICATION ACTIONS
+# ==========================================
+@app.route('/owner/payment/verify/<int:payment_id>/approve', methods=['POST'])
+@login_required
+def owner_payment_approve(payment_id):
+    if current_user.role != 'owner':
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+
+    payment = UPIPayments.query.get_or_404(payment_id)
+    payment.status = "Paid"
+    
+    # Auto accept the order when payment is approved
+    if payment.order.status == "Pending":
+        payment.order.status = "Accepted"
+        
+    db.session.commit()
+    flash(f"Payment approved successfully for Order #{payment.order_id}! Order Accepted. ✅")
+    return redirect(url_for('owner_orders'))
+
+
+@app.route('/owner/payment/verify/<int:payment_id>/reject', methods=['POST'])
+@login_required
+def owner_payment_reject(payment_id):
+    if current_user.role != 'owner':
+        flash("Unauthorized access! ❌")
+        return redirect(url_for('index'))
+
+    payment = UPIPayments.query.get_or_404(payment_id)
+    payment.status = "Failed"
+    db.session.commit()
+    flash(f"Payment rejected for Order #{payment.order_id}. status marked Failed.")
+    return redirect(url_for('owner_orders'))
+
 # ================= PLACE ORDER =================
 @app.route('/place_order', methods=['POST'])
 @login_required
@@ -1118,6 +1339,8 @@ def place_order():
         return redirect(url_for('shop_list'))
 
     payment_method = request.form['payment']
+    transaction_id = request.form.get('transaction_id')
+    screenshot_file = request.files.get('payment_screenshot')
 
     first_product = db.session.get(Product, int(list(cart.keys())[0]))
     if not first_product:
@@ -1162,6 +1385,25 @@ def place_order():
             db.session.add(item)
 
         order.total = total
+
+        # Handle UPI payments screenshot proof
+        if payment_method != "Cash on Delivery" and screenshot_file and screenshot_file.filename != "":
+            filename = secure_filename(screenshot_file.filename)
+            filename = f"pay_{order.id}_{int(datetime.datetime.now().timestamp())}_{filename}"
+            screenshot_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            
+            upi_payment = UPIPayments(
+                order_id=order.id,
+                transaction_id=transaction_id,
+                screenshot=filename,
+                amount=total,
+                status="Under Verification"
+            )
+            db.session.add(upi_payment)
+            flash("Order placed successfully! Payment screenshot uploaded for review. ⏱️")
+        else:
+            flash("Order Placed Successfully via COD!")
+
         db.session.commit()
 
         session.pop('cart', None)
@@ -1172,7 +1414,6 @@ def place_order():
         except:
             pass
 
-        flash("Order Placed Successfully")
         return redirect(url_for('my_orders'))
 
     except ValueError as val_err:
@@ -1263,6 +1504,36 @@ def rate_product(product_id):
     db.session.commit()
     flash("Product rated successfully!")
     return redirect(request.referrer)
+
+# ==========================================
+# GPS LOCATION CACHING API FOR CUSTOMERS
+# ==========================================
+@app.route('/api/gps/log', methods=['POST'])
+@login_required
+def api_gps_log():
+    data = request.get_json() or {}
+    lat = data.get('latitude')
+    lng = data.get('longitude')
+    
+    if lat is not None and lng is not None:
+        try:
+            # Check if user already has a GPS log, else create
+            log = GPSLogs.query.filter_by(user_id=current_user.id).first()
+            if not log:
+                log = GPSLogs(user_id=current_user.id, latitude=float(lat), longitude=float(lng))
+                db.session.add(log)
+            else:
+                log.latitude = float(lat)
+                log.longitude = float(lng)
+                log.updated_at = datetime.datetime.utcnow()
+                
+            db.session.commit()
+            return jsonify({"status": "success", "message": "Proximity logs updated."})
+        except Exception as err:
+            db.session.rollback()
+            return jsonify({"status": "error", "message": str(err)}), 500
+            
+    return jsonify({"status": "error", "message": "Missing coordinates."}), 400
 
 # ================= CHATBOT =================
 @app.route('/api/chat', methods=['POST'])

@@ -1,45 +1,225 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="glass-panel" style="max-width: 1200px; margin: 0 auto;">
-    <h2 class="text-center mb-4">🛠 Admin Panel</h2>
+<div class="glass-panel" style="max-width: 1200px; margin: 2rem auto; animation: pageLoad 0.5s ease-out;">
+    
+    <div class="flex-between mb-4 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <h2 style="margin:0; color:#fff;">🛠️ Central Marketplace Administration</h2>
+        <span class="badge" style="background: rgba(192, 132, 252, 0.2); color: var(--secondary); font-size:0.85rem; padding: 0.4rem 1rem;">System Root Access</span>
+    </div>
 
-    <div class="grid-cards">
-        <div class="card">
-            <h3 class="card-title">Users</h3>
-            <div style="max-height: 300px; overflow-y: auto;">
-                {% for u in users %}
-                <div class="flex-between mb-2" style="background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 8px;">
-                    <span>{{ u.username }}</span>
-                    <span class="badge" style="background: rgba(192, 132, 252, 0.2); color: var(--secondary);">{{ u.role }}</span>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
+    <!-- TAB HEADERS -->
+    <div class="admin-tabs" style="display:flex; border-bottom:1px solid rgba(255,255,255,0.06); gap:1.5rem; margin-bottom:1.5rem;">
+        <button class="adm-tab-btn active" onclick="switchAdminTab('overview-tab', this)">📊 System Overview</button>
+        <button class="adm-tab-btn" onclick="switchAdminTab('verifications-tab', this)">⚡ Shop Verifications ({{ verifications|length }})</button>
+    </div>
 
-        <div class="card">
-            <h3 class="card-title">Shops</h3>
-            <div style="max-height: 300px; overflow-y: auto;">
-                {% for s in shops %}
-                <div class="mb-2" style="background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 8px;">
-                    {{ s.name }}
+    <!-- TAB 1: SYSTEM OVERVIEW -->
+    <div id="overview-tab" class="adm-tab-pane active">
+        <div class="grid-cards" style="grid-template-columns: repeat(3, 1fr);">
+            
+            <div class="card">
+                <h3 class="card-title" style="color:var(--secondary); border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:0.5rem;">👥 Registered Users</h3>
+                <div style="max-height: 350px; overflow-y: auto; display:flex; flex-direction:column; gap:0.5rem;" class="mt-2">
+                    {% for u in users %}
+                    <div class="flex-between" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 0.6rem 1rem; border-radius: 10px;">
+                        <div>
+                            <span style="font-weight:500; color:#fff; display:block;">{{ u.username }}</span>
+                            <small style="color:var(--text-muted);">{{ u.email }}</small>
+                        </div>
+                        <span class="badge {{ 'Completed' if u.role == 'admin' else ('Pending' if u.role == 'owner' else 'Accepted') }}" style="font-size:0.7rem;">{{ u.role }}</span>
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
-        </div>
 
-        <div class="card">
-            <h3 class="card-title">Orders</h3>
-            <div style="max-height: 300px; overflow-y: auto;">
-                {% for o in orders %}
-                <div class="flex-between mb-2" style="background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 8px;">
-                    <span>Order #{{ o.id }}</span>
-                    <span style="color: var(--primary); font-weight: 600;">₹{{ o.total }}</span>
+            <div class="card">
+                <h3 class="card-title" style="color:var(--primary); border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:0.5rem;">🏪 Active Storefronts</h3>
+                <div style="max-height: 350px; overflow-y: auto; display:flex; flex-direction:column; gap:0.5rem;" class="mt-2">
+                    {% for s in shops %}
+                    <div class="flex-between" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 0.6rem 1rem; border-radius: 10px;">
+                        <div>
+                            <span style="font-weight:500; color:#fff; display:block;">{{ s.name }}</span>
+                            <small style="color:var(--text-muted);">Code: <code>{{ s.shop_code }}</code></small>
+                        </div>
+                        {% if s.is_verified %}
+                            <span class="badge Completed" style="font-size:0.65rem;">Verified</span>
+                        {% else %}
+                            <span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-muted); border:none; font-size:0.65rem;">Unverified</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
+
+            <div class="card">
+                <h3 class="card-title" style="color:var(--success); border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:0.5rem;">📦 Completed Orders</h3>
+                <div style="max-height: 350px; overflow-y: auto; display:flex; flex-direction:column; gap:0.5rem;" class="mt-2">
+                    {% for o in orders %}
+                    <div class="flex-between" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); padding: 0.6rem 1rem; border-radius: 10px;">
+                        <div>
+                            <span style="font-weight:500; color:#fff; display:block;">Order #{{ o.id }}</span>
+                            <small style="color:var(--text-muted);">Method: {{ o.payment_method }}</small>
+                        </div>
+                        <span style="color: var(--success); font-weight: 700; font-size:1.05rem;">₹{{ "%.2f"|format(o.total) }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
         </div>
     </div>
+
+    <!-- TAB 2: SHOP VERIFICATIONS -->
+    <div id="verifications-tab" class="adm-tab-pane">
+        {% if verifications %}
+            <div style="display:flex; flex-direction:column; gap:1.5rem;">
+                {% for v in verifications %}
+                    <div class="glass-panel" style="background: rgba(15, 23, 42, 0.4); border-color: rgba(255, 255, 255, 0.08); padding: 1.5rem !important;">
+                        
+                        <div class="flex-between mobile-stack-flex" style="border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:0.75rem; margin-bottom:1rem;">
+                            <div>
+                                <h3 style="margin:0; color:#fff; font-size:1.2rem;">🏪 Store: {{ v.shop.name }}</h3>
+                                <small style="color:var(--text-muted);">Owner: <b>{{ v.shop.owner.username }}</b> | Submitted: {{ v.submitted_at.strftime('%d %b %Y, %I:%M %p') }}</small>
+                            </div>
+                            <span class="badge {{ 'Completed' if v.status == 'Verified' else ('Pending' if v.status == 'Under Review' or v.status == 'Pending' else 'Rejected') }}" style="font-size:0.75rem; padding:0.4rem 1rem;">
+                                Status: {{ v.status }}
+                            </span>
+                        </div>
+
+                        <!-- CREDENTIALS DETAIL GRID -->
+                        <div style="display:grid; grid-template-columns:1fr 2fr; gap:1.5rem; margin-bottom:1.25rem;" class="mobile-stack">
+                            
+                            <div style="display:flex; flex-direction:column; gap:0.6rem; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.04); padding:1rem; border-radius:12px;">
+                                <h4 style="margin:0; font-size:0.9rem; color:var(--primary); text-transform:uppercase; letter-spacing:0.02em;">Corporate Profile</h4>
+                                <span style="font-size:0.85rem;">📞 Phone: <b>{{ v.phone_number }}</b></span>
+                                <span style="font-size:0.85rem;">💼 GSTIN: <code>{{ v.gst_number or 'Not Submitted' }}</code></span>
+                                <span style="font-size:0.85rem;">📍 Coordinates: <code>{{ v.shop.location_rel.latitude }}, {{ v.shop.location_rel.longitude }}</code></span>
+                                <span style="font-size:0.85rem; line-height: 1.3;">🗺️ Map Address: <br><small style="color:var(--text-muted);">{{ v.shop.location_rel.map_address or 'No address geocoded.' }}</small></span>
+                            </div>
+
+                            <!-- UPLOADED IMAGES GALLERY -->
+                            <div>
+                                <h4 style="margin:0 0 0.5rem 0; font-size:0.9rem; color:var(--secondary); text-transform:uppercase; letter-spacing:0.02em;">Uploaded Photo Evidence</h4>
+                                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:0.75rem;" class="mobile-stack">
+                                    <div style="text-align:center;">
+                                        <a href="{{ url_for('static', filename='uploads/' + v.front_image) }}" target="_blank">
+                                            <img src="{{ url_for('static', filename='uploads/' + v.front_image) }}" style="width:100%; height:90px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                                        </a>
+                                        <small style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:2px;">Front View</small>
+                                    </div>
+                                    <div style="text-align:center;">
+                                        <a href="{{ url_for('static', filename='uploads/' + v.inside_image) }}" target="_blank">
+                                            <img src="{{ url_for('static', filename='uploads/' + v.inside_image) }}" style="width:100%; height:90px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                                        </a>
+                                        <small style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:2px;">Inside View</small>
+                                    </div>
+                                    <div style="text-align:center;">
+                                        <a href="{{ url_for('static', filename='uploads/' + v.owner_photo) }}" target="_blank">
+                                            <img src="{{ url_for('static', filename='uploads/' + v.owner_photo) }}" style="width:100%; height:90px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                                        </a>
+                                        <small style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:2px;">Owner Portrait</small>
+                                    </div>
+                                    <div style="text-align:center;">
+                                        {% if v.business_proof %}
+                                        <a href="{{ url_for('static', filename='uploads/' + v.business_proof) }}" target="_blank">
+                                            <img src="{{ url_for('static', filename='uploads/' + v.business_proof) }}" style="width:100%; height:90px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                                        </a>
+                                        <small style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:2px;">Biz License</small>
+                                        {% else %}
+                                        <div style="width:100%; height:90px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.1); border-radius:8px; color:var(--text-muted); font-size:0.75rem;">N/A</div>
+                                        <small style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:2px;">Biz License</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- ADMIN ACTIONS -->
+                        {% if v.status != 'Verified' %}
+                        <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:1rem;">
+                            <form action="{{ url_for('admin_verification_reject', verification_id=v.id) }}" method="POST" style="margin:0;">
+                                <button type="submit" class="btn" style="background:#ff4d4d; border-radius:8px; padding:0.4rem 1.2rem; font-size:0.85rem; box-shadow:none;">Reject Application</button>
+                            </form>
+                            <form action="{{ url_for('admin_verification_approve', verification_id=v.id) }}" method="POST" style="margin:0;">
+                                <button type="submit" class="btn" style="border-radius:8px; padding:0.4rem 1.2rem; font-size:0.85rem;">❇️ Verify Shop</button>
+                            </form>
+                        </div>
+                        {% endif %}
+
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state text-center py-5 glass-panel">
+                <span style="font-size: 3rem;">📋</span>
+                <h4 class="mt-3">No store verifications submitted</h4>
+                <p>Applications submitted by store owners will populate here for review.</p>
+            </div>
+        {% endif %}
+    </div>
+
 </div>
+
+<!-- ADMIN TABS MECHANICS -->
+<script>
+function switchAdminTab(tabId, btnElement) {
+    const panes = document.querySelectorAll('.adm-tab-pane');
+    panes.forEach(p => p.classList.remove('active'));
+
+    const btns = document.querySelectorAll('.adm-tab-btn');
+    btns.forEach(b => b.classList.remove('active'));
+
+    document.getElementById(tabId).classList.add('active');
+    btnElement.classList.add('active');
+}
+</script>
+
+<style>
+.adm-tab-btn {
+    background:transparent;
+    border:none;
+    color:var(--text-muted);
+    font-size:1.05rem;
+    font-weight:600;
+    padding:0.75rem 0.25rem;
+    cursor:pointer;
+    position:relative;
+    outline:none;
+    transition:all 0.3s ease;
+}
+.adm-tab-btn:hover {
+    color:#fff;
+}
+.adm-tab-btn.active {
+    color:var(--primary);
+    text-shadow:0 0 10px var(--primary-glow);
+}
+.adm-tab-btn.active::after {
+    content:'';
+    position:absolute;
+    bottom:-1px;
+    left:0;
+    width:100%;
+    height:2px;
+    background:var(--primary);
+    box-shadow: 0 0 8px var(--primary-glow);
+}
+.adm-tab-pane {
+    display:none;
+}
+.adm-tab-pane.active {
+    display:block;
+    animation:slideIn 0.3s ease-out;
+}
+@media (max-width: 768px) {
+    .mobile-stack-flex {
+        flex-direction:column;
+        align-items:flex-start !important;
+        gap:0.5rem;
+    }
+}
+</style>
 
 {% endblock %}

@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="glass-panel" style="max-width: 900px; margin: 2rem auto; animation: pageLoad 0.5s ease-out;">
+    
+    <div class="flex-between mb-4 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <div>
+            <h2 style="margin:0; color:#fff;">✨ Verified Shop Application</h2>
+            <p style="margin:0; font-size:0.9rem; color:var(--text-muted);" class="mt-1">Unlock your magical verified badge to gain trust and customer connection.</p>
+        </div>
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.9rem;">Back to Profile</a>
+    </div>
+
+    <!-- CURRENT VERIFICATION STATUS -->
+    <div class="glass-panel mb-4 text-center" style="background: rgba(56, 189, 248, 0.03); border-color: rgba(56, 189, 248, 0.2);">
+        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">Current Verification Integrity</span>
+        <div class="mt-2">
+            {% if status == 'Verified' %}
+                <span class="badge Completed" style="font-size: 1rem; padding: 0.5rem 1.5rem; text-shadow:0 0 10px rgba(16,185,129,0.4);">❇️ VERIFIED SHOP</span>
+                <p class="mt-2" style="color:var(--success); font-size:0.95rem;">Congratulations! Your shop has unlocked the magical glowing badge.</p>
+            {% elif status == 'Pending' or status == 'Under Review' %}
+                <span class="badge Pending" style="font-size: 1.0rem; padding: 0.5rem 1.5rem;">⏱️ {{ status|upper }}</span>
+                <p class="mt-2" style="color:var(--warning); font-size:0.95rem;">Your business credentials are under active review by the administration hub.</p>
+            {% elif status == 'Rejected' %}
+                <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); font-size: 1.0rem; padding: 0.5rem 1.5rem;">❌ REJECTED / DE-VERIFIED</span>
+                <p class="mt-2" style="color:var(--danger); font-size:0.95rem;">Your verification was rejected. Please review files and re-submit accurate details.</p>
+            {% else %}
+                <span class="badge" style="background: rgba(255,255,255,0.05); color: #fff; font-size: 1.0rem; padding: 0.5rem 1.5rem;">⚪ UNVERIFIED</span>
+                <p class="mt-2" style="color:var(--text-muted); font-size:0.95rem;">Apply below by uploading your coordinates and business images.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if status != 'Verified' %}
+    <form action="{{ url_for('owner_verification_submit') }}" method="POST" enctype="multipart/form-data">
+        
+        <!-- SECTION 1: CONTACTS & METRICS -->
+        <h3 class="mb-3" style="color: var(--secondary); font-size: 1.25rem;">📞 Business Registration Credentials</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;" class="mobile-stack">
+            <div class="form-group">
+                <label>Operational Phone Number *</label>
+                <input type="text" name="phone_number" placeholder="+91 XXXXX XXXXX" value="{{ verification.phone_number if verification else '' }}" required>
+            </div>
+            <div class="form-group">
+                <label>Corporate GST Number (Optional)</label>
+                <input type="text" name="gst_number" placeholder="22AAAAA0000A1Z5" value="{{ verification.gst_number if verification else '' }}">
+            </div>
+        </div>
+
+        <!-- SECTION 2: GOOGLE MAPS GPS LOCATION -->
+        <h3 class="mb-3 mt-4" style="color: var(--primary); font-size: 1.25rem; display:flex; align-items:center; gap:0.5rem;">📍 Google Maps Geolocation Coordinates</h3>
+        
+        <!-- Maps inputs -->
+        <div class="form-group mb-3">
+            <label>Google Maps Location Link / Map Search Address</label>
+            <div style="display:flex; gap:0.5rem;">
+                <input type="text" id="mapSearchInput" name="map_address" placeholder="Search street address, city, or paste Maps link..." value="{{ location.map_address if location else '' }}" style="flex:1;">
+                <button type="button" id="detectGPSBtn" class="btn btn-secondary" style="padding:0.75rem 1.2rem; font-size:0.9rem; white-space:nowrap; border-radius:12px;">🛰️ Auto GPS</button>
+            </div>
+        </div>
+
+        <!-- Interactive Google Map Frame -->
+        <div class="mb-3" style="width:100%; height:320px; border-radius:16px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); position:relative;">
+            <div id="ownerGeomap" style="width:100%; height:100%; background:rgba(0,0,0,0.3);">
+                <div style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--text-muted); font-size:0.9rem; text-align:center; padding: 2rem;">
+                    <span>🗺️ Interactive Google Map Canvas</span>
+                    <small class="mt-2">Drag marker to save coordinates. Autocomplete search enabled above.</small>
+                    <small style="color:var(--primary);" class="mt-1">(Google Maps JavaScript SDK loads automatically on active credentials)</small>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;" class="mobile-stack">
+            <div class="form-group">
+                <label>Latitude *</label>
+                <input type="number" step="any" id="latInput" name="latitude" placeholder="e.g. 13.0827" value="{{ location.latitude if location else '' }}" required readonly style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+            </div>
+            <div class="form-group">
+                <label>Longitude *</label>
+                <input type="number" step="any" id="lngInput" name="longitude" placeholder="e.g. 80.2707" value="{{ location.longitude if location else '' }}" required readonly style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+            </div>
+        </div>
+
+        <!-- SECTION 3: FILE UPLOADS -->
+        <h3 class="mb-3 mt-4" style="color: var(--success); font-size: 1.25rem;">🖼️ Required Photographic Business Proofs</h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;" class="mobile-stack">
+            
+            <!-- SHOP FRONT -->
+            <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); text-align:center;">
+                <label style="font-weight:600; display:block;" class="mb-2">Shop Front View *</label>
+                <div style="position:relative; display:inline-block;" class="mb-2">
+                    <img id="frontPreview" src="{{ url_for('static', filename='uploads/' + verification.front_image) if verification else 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=200&auto=format&fit=crop' }}" alt="Front Preview" style="width: 100%; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--secondary);">
+                </div>
+                <input type="file" name="front_image" accept="image/*" style="font-size:0.75rem; padding:0.4rem;" {% if not verification %}required{% endif %}>
+            </div>
+
+            <!-- SHOP INSIDE -->
+            <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); text-align:center;">
+                <label style="font-weight:600; display:block;" class="mb-2">Shop Inside View *</label>
+                <div style="position:relative; display:inline-block;" class="mb-2">
+                    <img id="insidePreview" src="{{ url_for('static', filename='uploads/' + verification.inside_image) if verification else 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&auto=format&fit=crop' }}" alt="Inside Preview" style="width: 100%; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary);">
+                </div>
+                <input type="file" name="inside_image" accept="image/*" style="font-size:0.75rem; padding:0.4rem;" {% if not verification %}required{% endif %}>
+            </div>
+
+            <!-- OWNER PHOTO -->
+            <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); text-align:center;">
+                <label style="font-weight:600; display:block;" class="mb-2">Owner Profile Photo *</label>
+                <div style="position:relative; display:inline-block;" class="mb-2">
+                    <img id="ownerPreview" src="{{ url_for('static', filename='uploads/' + verification.owner_photo) if verification else 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop' }}" alt="Owner Preview" style="width: 100%; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--success);">
+                </div>
+                <input type="file" name="owner_photo" accept="image/*" style="font-size:0.75rem; padding:0.4rem;" {% if not verification %}required{% endif %}>
+            </div>
+
+            <!-- BUSINESS PROOF -->
+            <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); text-align:center;">
+                <label style="font-weight:600; display:block;" class="mb-2">Business License Proof</label>
+                <div style="position:relative; display:inline-block;" class="mb-2">
+                    <img id="proofPreview" src="{{ url_for('static', filename='uploads/' + verification.business_proof) if verification and verification.business_proof else 'https://images.unsplash.com/photo-1450133064473-71024230f91b?q=80&w=200&auto=format&fit=crop' }}" alt="Proof Preview" style="width: 100%; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--warning);">
+                </div>
+                <input type="file" name="business_proof" accept="image/*" style="font-size:0.75rem; padding:0.4rem;">
+            </div>
+
+        </div>
+
+        <div class="flex-between mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:2rem;">
+            <button type="submit" class="btn" style="min-width: 240px; border-radius:10px;">💾 Submit Verification Request</button>
+            <a href="{{ url_for('profile') }}" style="color: var(--text-muted); font-weight: 500;">Cancel</a>
+        </div>
+
+    </form>
+    {% endif %}
+</div>
+
+<!-- IMAGE PREVIEWS AND GOOGLE MAPS INTEGRATION SCRIPTS -->
+<script>
+function setupImagePreview(inputName, previewId) {
+    const input = document.querySelector(`input[name="${inputName}"]`);
+    const preview = document.getElementById(previewId);
+    if(input && preview) {
+        input.addEventListener('change', function() {
+            const file = this.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setupImagePreview('front_image', 'frontPreview');
+    setupImagePreview('inside_image', 'insidePreview');
+    setupImagePreview('owner_photo', 'ownerPreview');
+    setupImagePreview('business_proof', 'proofPreview');
+
+    // Dynamic geolocation auto tracker
+    const detectBtn = document.getElementById('detectGPSBtn');
+    const latInput = document.getElementById('latInput');
+    const lngInput = document.getElementById('lngInput');
+
+    if(detectBtn && latInput && lngInput) {
+        detectBtn.addEventListener('click', function() {
+            if(navigator.geolocation) {
+                detectBtn.innerText = '🛰️ Geolocating...';
+                navigator.geolocation.getCurrentPosition(function(pos) {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    latInput.value = lat.toFixed(6);
+                    lngInput.value = lng.toFixed(6);
+                    detectBtn.innerText = '🛰️ GPS Captured';
+                    
+                    // Trigger map movement if maps SDK is active
+                    if (window.ownerMarker && window.ownerMap) {
+                        const newPos = {lat: lat, lng: lng};
+                        window.ownerMap.setCenter(newPos);
+                        window.ownerMarker.setPosition(newPos);
+                    }
+                }, function(err) {
+                    alert('⚠️ GPS detection blocked or timed out. Please drag marker manually on the map.');
+                    detectBtn.innerText = '🛰️ Auto GPS';
+                }, {enableHighAccuracy: true, timeout: 8000});
+            } else {
+                alert('Geolocation services not supported by your browser.');
+            }
+        });
+    }
+});
+
+// Google Maps JavaScript API Callback Loader
+function initOwnerMap() {
+    const defaultLat = parseFloat("{{ location.latitude if location else 13.0827 }}") || 13.0827;
+    const defaultLng = parseFloat("{{ location.longitude if location else 80.2707 }}") || 80.2707;
+    const centerLatLng = {lat: defaultLat, lng: defaultLng};
+
+    const mapOptions = {
+        zoom: 14,
+        center: centerLatLng,
+        styles: [
+            { elementType: "geometry", stylers: [{ color: "#0f172a" }] },
+            { elementType: "labels.text.stroke", stylers: [{ color: "#0f172a" }] },
+            { elementType: "labels.text.fill", stylers: [{ color: "#94a3b8" }] },
+            { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#334155" }] },
+            { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#cbd5e1" }] },
+            { featureType: "road", elementType: "geometry", stylers: [{ color: "#1e293b" }] },
+            { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#334155" }] },
+            { featureType: "water", elementType: "geometry", stylers: [{ color: "#020617" }] }
+        ]
+    };
+
+    const mapDiv = document.getElementById('ownerGeomap');
+    if (!mapDiv) return;
+    
+    // Instantiate Google Map
+    window.ownerMap = new google.maps.Map(mapDiv, mapOptions);
+
+    // Draggable shop position marker
+    window.ownerMarker = new google.maps.Marker({
+        position: centerLatLng,
+        map: window.ownerMap,
+        draggable: true,
+        title: "Drag me to your exact shop front entrance!",
+        animation: google.maps.Animation.DROP
+    });
+
+    const latInput = document.getElementById('latInput');
+    const lngInput = document.getElementById('lngInput');
+
+    // Pin dragging coordinate updates
+    google.maps.event.addListener(window.ownerMarker, 'dragend', function() {
+        const position = window.ownerMarker.getPosition();
+        latInput.value = position.lat().toFixed(6);
+        lngInput.value = position.lng().toFixed(6);
+    });
+
+    // Address autocompletion Places API linkage
+    const searchInput = document.getElementById('mapSearchInput');
+    if (searchInput) {
+        const autocomplete = new google.maps.places.Autocomplete(searchInput);
+        autocomplete.bindTo('bounds', window.ownerMap);
+
+        autocomplete.addListener('place_changed', function() {
+            const place = autocomplete.getPlace();
+            if (!place.geometry) {
+                return;
+            }
+
+            if (place.geometry.viewport) {
+                window.ownerMap.fitBounds(place.geometry.viewport);
+            } else {
+                window.ownerMap.setCenter(place.geometry.location);
+                window.ownerMap.setZoom(17);
+            }
+
+            window.ownerMarker.setPosition(place.geometry.location);
+            latInput.value = place.geometry.location.lat().toFixed(6);
+            lngInput.value = place.geometry.location.lng().toFixed(6);
+        });
+    }
+}
+</script>
+
+{% if google_maps_api_key %}
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initOwnerMap"></script>
+{% endif %}
+
+{% endblock %}

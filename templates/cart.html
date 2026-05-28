@@ -1,64 +1,171 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Your Cart</h2>
 
-<div class="glass-panel" style="max-width: 800px; margin: 0 auto;">
+<div class="glass-panel" style="max-width: 900px; margin: 2rem auto; animation: pageLoad 0.5s ease-out;">
+    
+    <div class="flex-between mb-4 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <h2 style="margin:0; color:#fff;">🛒 Checkout & Billing Panel</h2>
+        <a href="{{ url_for('shop_list') }}" class="btn btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.9rem;">Browse Stores</a>
+    </div>
+
     {% if items %}
-        <div class="grid-cards mb-4">
-        {% for item in items %}
-        <div class="card flex-between" style="flex-direction:row; align-items:center; padding: 1rem;">
-            <div>
-                <h4 style="margin-bottom:0;">
-                    <a href="{{ url_for('product_details', product_id=item.product.id) }}" style="color: white; text-decoration: none; font-weight: 600;">
-                        {{ item.product.name }}
-                    </a>
-                </h4>
-                <small class="text-muted">Qty: {{ item.quantity|format_quantity(item.product.price_unit) }} (at ₹ {{ item.product.price }} / {{ item.product.price_unit }})</small>
+        <!-- CART ITEMS MATRIX -->
+        <h3 class="mb-3" style="color: var(--secondary); font-size: 1.25rem;">Order Summary</h3>
+        <div class="grid-cards mb-4" style="grid-template-columns: 1fr; gap:0.75rem;">
+            {% for item in items %}
+            <div class="card flex-between glass-panel" style="flex-direction:row; align-items:center; padding: 1.25rem !important; border: 1px solid rgba(255,255,255,0.04); background:rgba(255,255,255,0.01);">
+                <div>
+                    <h4 style="margin:0; font-size:1.1rem; color:#fff;">
+                        <a href="{{ url_for('product_details', product_id=item.product.id) }}" style="color: white; text-decoration: none; font-weight: 600;">
+                            {{ item.product.name }}
+                        </a>
+                    </h4>
+                    <small class="text-muted">Quantity: <b>{{ item.quantity|format_quantity(item.product.price_unit) }}</b> (at ₹ {{ item.product.price }} per {{ item.product.price_unit }})</small>
+                </div>
+                <div style="font-weight:700; color:var(--primary); font-size:1.25rem; text-shadow:0 0 10px var(--primary-glow);">₹ {{ "%.2f"|format(item.subtotal) }}</div>
             </div>
-            <div style="font-weight:700; color:var(--primary);">₹ {{ item.subtotal }}</div>
-        </div>
-        {% endfor %}
+            {% endfor %}
         </div>
         
-        <div class="flex-between mb-4" style="padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 12px;">
-            <h3 style="margin:0;">Total:</h3>
-            <h3 style="margin:0; color:var(--primary);">₹ {{ total }}</h3>
+        <!-- BILLING TOTAL -->
+        <div class="flex-between mb-4" style="padding: 1.25rem; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 14px;">
+            <h3 style="margin:0; color:#fff; font-size: 1.3rem;">Grand Total:</h3>
+            <h3 style="margin:0; color:var(--primary); font-size: 1.75rem; font-weight:700; text-shadow:0 0 15px var(--primary-glow);">₹ {{ "%.2f"|format(total) }}</h3>
         </div>
 
-        <form method="POST" action="{{ url_for('place_order') }}">
-            <div class="form-group">
-                <label>Select Payment Method:</label>
-                <select name="payment" required>
-                    <option value="UPI">UPI</option>
-                    <option value="Cash on Pickup">Cash on Pickup</option>
+        <!-- DYNAMIC CHECKOUT BILLING GATEWAY -->
+        <form method="POST" action="{{ url_for('place_order') }}" enctype="multipart/form-data">
+            
+            <h3 class="mb-3" style="color: var(--primary); font-size: 1.25rem;">Select Checkout Option</h3>
+            
+            <div class="form-group mb-3">
+                <label>Billing Method</label>
+                <select name="payment" id="paymentMethodSelect" required style="border-radius:12px; padding:0.85rem;">
+                    <!-- Check Owner Configured Methods -->
+                    {% if shop and shop.payments_rel %}
+                        {% if shop.payments_rel.cod %}
+                            <option value="Cash on Delivery">🟢 Cash On Delivery (COD)</option>
+                        {% endif %}
+                        {% if shop.payments_rel.upi_id %}
+                            <option value="UPI Direct Deposit">📱 Unified Payments Interface (UPI)</option>
+                        {% endif %}
+                        {% if shop.payments_rel.gpay %}
+                            <option value="Google Pay (GPay)">🔵 Google Pay (GPay)</option>
+                        {% endif %}
+                        {% if shop.payments_rel.phonepe %}
+                            <option value="PhonePe">🟣 PhonePe Transfer</option>
+                        {% endif %}
+                        {% if shop.payments_rel.paytm %}
+                            <option value="Paytm">cyan Paytm Wallet</option>
+                        {% endif %}
+                    {% else %}
+                        <!-- Fallback default billing options -->
+                        <option value="Cash on Delivery">🟢 Cash On Delivery (COD)</option>
+                        <option value="UPI Direct Deposit">📱 Direct UPI Transfer (Manual)</option>
+                    {% endif %}
                 </select>
             </div>
-            <button class="btn" style="width:100%;">Place Order</button>
+
+            <!-- UPI DIGITAL QR SCANNING OVERLAY CARD -->
+            {% if shop and shop.payments_rel and shop.payments_rel.upi_id %}
+            <div id="upiScannerCard" class="glass-panel mb-4" style="display:none; background:rgba(192, 132, 252, 0.03); border:1px solid rgba(192, 132, 252, 0.2); animation:slideIn 0.35s ease;">
+                
+                <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:1.5rem;" class="mobile-stack">
+                    
+                    <!-- QR IMAGE RENDERING -->
+                    <div style="text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center; background:rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.04); padding:1rem; border-radius:12px;">
+                        <small style="color:var(--text-muted); display:block; font-weight:600; text-transform:uppercase;" class="mb-2">Merchant Scanner QR</small>
+                        {% if shop.payments_rel.qr_image %}
+                            <img src="{{ url_for('static', filename='uploads/' + shop.payments_rel.qr_image) }}" style="width:160px; height:160px; border-radius:8px; background:#fff; padding:4px;">
+                        {% else %}
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa={{ shop.payments_rel.upi_id }}&pn={{ shop.name }}&am={{ total }}" style="width:160px; height:160px; border-radius:8px; background:#fff; padding:4px;">
+                        {% endif %}
+                        <span class="mt-2" style="font-size:0.8rem; color:#fff; word-break:break-all;">UPI: <code>{{ shop.payments_rel.upi_id }}</code></span>
+                    </div>
+
+                    <!-- PROOF SUBMISSION FORMS -->
+                    <div>
+                        <h4 style="margin:0; color:#fff; font-size:1rem;" class="mb-2">Manual Transaction Verification</h4>
+                        <p style="margin:0 0 1rem 0; font-size:0.8rem; color:var(--text-muted); line-height:1.4;">
+                            Scan QR with your preferred banking app (GPay/PhonePe/Paytm), complete payment of <b>₹ {{"%.2f"|format(total)}}</b>, and upload screenshots below to verify.
+                        </p>
+                        
+                        <div class="form-group mb-3">
+                            <label>UPI Transaction Ref ID / UTR Code *</label>
+                            <input type="text" name="transaction_id" id="utrInput" placeholder="12-digit transaction ID (e.g. 412389823482)">
+                        </div>
+
+                        <div class="form-group mb-0">
+                            <label>Payment Success Screenshot *</label>
+                            <input type="file" name="payment_screenshot" id="screenshotInput" accept="image/*" style="padding:0.4rem;">
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+            {% endif %}
+
+            <button type="submit" class="btn mt-3" style="width:100%; border-radius:12px; padding:0.95rem; font-size:1.05rem;">🔒 Complete Order & Place Checkout</button>
         </form>
+
     {% else %}
-        <div class="text-center" style="padding: 3rem;">
-            <p>Your cart is empty.</p>
-            <a href="{{ url_for('shop_list') }}" class="btn mt-2">Browse Shops</a>
+        <div class="text-center" style="padding: 4rem 2rem;">
+            <span style="font-size: 3rem;">🛒</span>
+            <h4 class="mt-3">Your shopping cart is empty</h4>
+            <p>Select products from our local catalog to build your digital shopping basket!</p>
+            <a href="{{ url_for('shop_list') }}" class="btn mt-2">Browse Catalog</a>
         </div>
     {% endif %}
 </div>
 
+<!-- PAYMENTS SCANNER TOGGLE TRIGGERS -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selector = document.getElementById('paymentMethodSelect');
+    const upiCard = document.getElementById('upiScannerCard');
+    const utrInput = document.getElementById('utrInput');
+    const screenshotInput = document.getElementById('screenshotInput');
+
+    if(selector && upiCard) {
+        function checkSelection() {
+            const val = selector.value;
+            // Reveal direct scanner overlay for any digital UPI channel
+            if(val !== 'Cash on Delivery') {
+                upiCard.style.display = 'block';
+                if(utrInput) utrInput.setAttribute('required', 'required');
+                if(screenshotInput) screenshotInput.setAttribute('required', 'required');
+            } else {
+                upiCard.style.display = 'none';
+                if(utrInput) utrInput.removeAttribute('required');
+                if(screenshotInput) screenshotInput.removeAttribute('required');
+            }
+        }
+        
+        selector.addEventListener('change', checkSelection);
+        checkSelection(); // run initial
+    }
+});
+</script>
+
 {% if recommendations %}
-<div class="recommendation-section" style="max-width: 800px; margin: 3rem auto;">
+<div class="recommendation-section" style="max-width: 900px; margin: 3rem auto; animation: pageLoad 0.6s ease-out;">
     <div class="recommendation-header">
-        <h3>🔗 Frequently Bought Together</h3>
+        <h3 style="color:var(--primary); font-size:1.35rem; display:flex; align-items:center; gap:0.5rem;">🔗 Frequently Bought Together</h3>
     </div>
-    <div class="recommendation-grid">
+    <div class="recommendation-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:1.5rem;">
         {% for r in recommendations %}
-        <div class="recommendation-card">
+        <div class="recommendation-card glass-panel" style="padding:1.25rem !important; border-radius:18px;">
             {% if r.image %}
-            <img src="{{ url_for('static', filename='uploads/' + r.image) }}" class="recommendation-card-img">
+                <img src="{{ url_for('static', filename='uploads/' + r.image) }}" class="recommendation-card-img" style="height:120px; border-radius:10px;">
             {% endif %}
-            <h4 class="recommendation-card-title">{{ r.name }}</h4>
-            <div class="recommendation-card-price">₹ {{ r.price }}</div>
-            <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" class="recommendation-form-container" style="display:flex; gap:0.5rem;">
-                <input type="number" name="quantity" value="1" min="0.01" step="any" required style="width: 70px; padding:0.4rem;">
-                <button type="submit" class="btn" style="flex:1; padding:0.4rem;">Add</button>
+            <h4 class="recommendation-card-title" style="font-size:0.95rem; margin: 0.5rem 0 0.25rem 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#fff;">{{ r.name }}</h4>
+            <div class="recommendation-card-price" style="color:var(--primary); font-weight:700; font-size:1.15rem; margin-bottom:0.75rem;">₹ {{ r.price }}</div>
+            
+            <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" class="recommendation-form-container" style="display:flex; gap:0.3rem; margin-top:auto;">
+                <input type="hidden" name="quantity" value="1">
+                <input type="hidden" name="unit" value="{{ 'piece' if r.price_unit == 'piece' else 'kg' }}">
+                <button type="submit" class="btn" style="width:100%; padding:0.4rem 0.8rem; font-size:0.8rem; border-radius:8px;">🛒 Add to Cart</button>
             </form>
         </div>
         {% endfor %}

@@ -34,7 +34,7 @@
 
                     {% if shop %}
                     <p style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 1.5rem;">
-                        Sold by: <a href="{{ url_for('shop_products', shop_id=shop.id) }}" style="color: var(--primary); font-weight: 600; text-decoration: none; border-bottom: 1px dashed var(--primary);">{{ shop.name }}</a>
+                        Sold by: <a href="{{ url_for('shop_products', shop_id=shop.id) }}" style="color: var(--primary); font-weight: 600; text-decoration: none; border-bottom: 1px dashed var(--primary);">{{ shop.name }}</a> {{ shop.verified_badge|safe }}
                     </p>
                     {% endif %}
 

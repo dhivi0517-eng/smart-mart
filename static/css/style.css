@@ -1903,3 +1903,81 @@ input:focus, select:focus, textarea:focus {
         height: 65vh;
     }
 }
+
+
+/* =========================================
+   VERIFICATION & PREMIUM GEOLOCATION MAPS
+========================================= */
+
+@keyframes verifiedPulse {
+    0% {
+        border-color: rgba(56, 189, 248, 0.3);
+        box-shadow: 0 0 4px rgba(56, 189, 248, 0.2), 0 0 8px rgba(192, 132, 252, 0.1);
+    }
+    100% {
+        border-color: rgba(56, 189, 248, 0.8);
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.6), 0 0 20px rgba(192, 132, 252, 0.4);
+    }
+}
+
+.verified-badge-magical {
+    background: linear-gradient(135deg, #c084fc, #38bdf8);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 99px;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    animation: verifiedPulse 2s infinite alternate;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+}
+
+/* Owner Profile / Shop Map Preview Styles */
+.shop-map-preview-container {
+    position: relative;
+    width: 100%;
+    height: 250px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    margin-top: 1rem;
+}
+
+.shop-map-element {
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.payment-method-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.4rem 0.8rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #fff;
+    transition: all 0.2s ease;
+}
+
+.payment-method-pill.active {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: #34d399;
+}
+
+.payment-method-pill:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.08);
+}

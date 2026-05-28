@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="glass-panel" style="max-width: 800px; margin: 2rem auto; animation: pageLoad 0.5s ease-out;">
+    
+    <div class="flex-between mb-4 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <div>
+            <h2 style="margin:0; color:#fff;">💳 Payment Gateway Configuration</h2>
+            <p style="margin:0; font-size:0.9rem; color:var(--text-muted);" class="mt-1">Configure checkout payment options and scanning banners for your buyers.</p>
+        </div>
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.9rem;">Back to Profile</a>
+    </div>
+
+    <form action="{{ url_for('owner_payment_settings_submit') }}" method="POST" enctype="multipart/form-data">
+        
+        <!-- SECTION 1: UPI ID & QR BANNER -->
+        <h3 class="mb-3" style="color: var(--primary); font-size: 1.25rem;">📱 Mobile UPI Billing Settings</h3>
+        
+        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;" class="mobile-stack">
+            <div>
+                <div class="form-group mb-3">
+                    <label>Store UPI ID * (for manual/direct deposits)</label>
+                    <input type="text" name="upi_id" placeholder="e.g. storename@okaxis" value="{{ payment.upi_id if payment else '' }}" required>
+                    <small style="color: var(--text-muted); display:block;" class="mt-1">Ensure this UPI address is fully functional and verified.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Preferred UPI Apps (Toggles)</label>
+                    <div style="display:flex; flex-direction:column; gap:0.6rem;" class="mt-2">
+                        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                            <input type="checkbox" name="gpay" value="y" style="width:auto;" {% if payment and payment.gpay %}checked{% endif %}>
+                            <span>🔵 Enable Google Pay (GPay) integration</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                            <input type="checkbox" name="phonepe" value="y" style="width:auto;" {% if payment and payment.phonepe %}checked{% endif %}>
+                            <span>🟣 Enable PhonePe integration</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                            <input type="checkbox" name="paytm" value="y" style="width:auto;" {% if payment and payment.paytm %}checked{% endif %}>
+                            <span>cyan Enable Paytm payments</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                            <input type="checkbox" name="cod" value="y" style="width:auto;" {% if not payment or payment.cod %}checked{% endif %}>
+                            <span>🟢 Allow Cash On Delivery (COD)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- QR IMAGE DISPLAY -->
+            <div class="glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); text-align:center; display:flex; flex-direction:column; justify-content:space-between; align-items:center;">
+                <label style="font-weight:600; display:block;" class="mb-2">Your UPI QR Code Banner</label>
+                <div style="position:relative; display:inline-block;" class="mb-2">
+                    <img id="qrPreview" src="{{ url_for('static', filename='uploads/' + payment.qr_image) if payment and payment.qr_image else 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=MiniMartProPayments' }}" alt="QR Code Preview" style="width: 150px; height: 150px; border-radius: 8px; border: 2px dashed rgba(255,255,255,0.15); padding:4px; background:#fff;">
+                </div>
+                <input type="file" name="qr_image" accept="image/*" style="font-size:0.75rem; padding:0.4rem; border:none; background:transparent;">
+                <small style="color:var(--text-muted); display:block;" class="mt-1">Upload QR screenshot from GPay/PhonePe business account.</small>
+            </div>
+        </div>
+
+        <!-- SECTION 2: BANK TRANSFERS -->
+        <h3 class="mb-3 mt-4" style="color: var(--secondary); font-size: 1.25rem;">🏛️ Direct Bank Transfer Details</h3>
+        <div class="form-group">
+            <label>Corporate Bank Account Details (Optional)</label>
+            <textarea name="bank_details" rows="3" placeholder="Beneficiary Name: ...&#10;Account Number: ...&#10;IFSC Code: ...&#10;Bank Name: ..." style="resize: vertical;">{{ payment.bank_details if payment else '' }}</textarea>
+            <small style="color:var(--text-muted);">These details are displayed only to customers opting for bank deposits.</small>
+        </div>
+
+        <div class="flex-between mt-4" style="border-top:1px solid rgba(255,255,255,0.1); padding-top:2rem;">
+            <button type="submit" class="btn" style="min-width: 200px; border-radius:10px;">💾 Save Billing Methods</button>
+            <a href="{{ url_for('profile') }}" style="color: var(--text-muted); font-weight: 500;">Cancel</a>
+        </div>
+
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.querySelector('input[name="qr_image"]');
+    const preview = document.getElementById('qrPreview');
+    if(input && preview) {
+        input.addEventListener('change', function() {
+            const file = this.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}
