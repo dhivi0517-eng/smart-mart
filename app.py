@@ -10,7 +10,7 @@ import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
-from models import db, User, Shop, Product, Order, OrderItem, ShopRating, ProductRating, ShopConnection, ShopPost, ShopOffer, ProfileCustomization, Wishlist
+from models import db, User, Shop, Product, Order, OrderItem, ShopRating, ProductRating, ShopConnection, ShopPost, ShopOffer, ProfileCustomization, Wishlist, ShopLocation, ShopVerification, PaymentMethods, UPIPayments, GPSLogs
 from recommender import recommender
 from chatbot import bot as chatbot
 
@@ -421,6 +421,10 @@ def owner_verification_submit():
     verification.phone_number = phone_number
     verification.gst_number = gst_number
     verification.status = "Under Review" # Transitions back to review on edits
+    verification.verification_status = "Under Review"
+    verification.latitude = lat
+    verification.longitude = lng
+    verification.location_link = map_address
 
     # Save coordinate location records
     location = ShopLocation.query.filter_by(shop_id=shop.id).first()
@@ -440,6 +444,8 @@ def owner_verification_submit():
             filename = f"verify_{shop.id}_{file_key}_{filename}"
             f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             setattr(verification, file_key, filename)
+            if file_key == 'front_image':
+                verification.shop_photo = filename
 
     db.session.commit()
     flash("Verification credentials submitted successfully! Under active review. ⏱️")
@@ -494,6 +500,10 @@ def owner_payment_settings_submit():
     payment.phonepe = phonepe
     payment.paytm = paytm
     payment.cod = cod
+    payment.cod_enabled = cod
+    payment.gpay_number = upi_id if gpay else ""
+    payment.phonepe_number = upi_id if phonepe else ""
+    payment.paytm_number = upi_id if paytm else ""
 
     qr_image = request.files.get('qr_image')
     if qr_image and qr_image.filename != "":
@@ -1679,6 +1689,44 @@ def check_and_update_db_schema():
                 print("Added column created_at to order table.")
             except Exception as col_err:
                 print("Column created_at to order table may already exist or cannot be added:", str(col_err))
+
+            # 5. Add new columns to shop_verification table (SQLite and PostgreSQL)
+            verification_cols = [
+                ("owner_photo", "VARCHAR(200)"),
+                ("shop_photo", "VARCHAR(200)"),
+                ("location_link", "VARCHAR(300)"),
+                ("latitude", "DOUBLE PRECISION" if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI'] else "FLOAT"),
+                ("longitude", "DOUBLE PRECISION" if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI'] else "FLOAT"),
+                ("verification_status", "VARCHAR(20) DEFAULT 'Pending'"),
+                ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            ]
+            for col, col_type in verification_cols:
+                try:
+                    if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
+                        conn.execute(text(f'ALTER TABLE shop_verification ADD COLUMN IF NOT EXISTS {col} {col_type};'))
+                    else:
+                        conn.execute(text(f'ALTER TABLE shop_verification ADD COLUMN {col} {col_type};'))
+                    print(f"Added column {col} to shop_verification table.")
+                except Exception as col_err:
+                    print(f"Column {col} to shop_verification may already exist or cannot be added: {str(col_err)}")
+
+            # 6. Add new columns to payment_methods table (SQLite and PostgreSQL)
+            payment_cols = [
+                ("gpay_number", "VARCHAR(50)"),
+                ("phonepe_number", "VARCHAR(50)"),
+                ("paytm_number", "VARCHAR(50)"),
+                ("cod_enabled", "BOOLEAN DEFAULT TRUE"),
+                ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            ]
+            for col, col_type in payment_cols:
+                try:
+                    if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
+                        conn.execute(text(f'ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS {col} {col_type};'))
+                    else:
+                        conn.execute(text(f'ALTER TABLE payment_methods ADD COLUMN {col} {col_type};'))
+                    print(f"Added column {col} to payment_methods table.")
+                except Exception as col_err:
+                    print(f"Column {col} to payment_methods may already exist or cannot be added: {str(col_err)}")
     except Exception as e:
         print("ERROR: Database schema check/update failed:", str(e))
 

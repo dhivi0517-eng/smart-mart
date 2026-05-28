@@ -90,27 +90,27 @@
             <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); text-align:center;">
                 <label style="font-weight:600; display:block;" class="mb-2">Shop Front View *</label>
                 <div style="position:relative; display:inline-block;" class="mb-2">
-                    <img id="frontPreview" src="{{ url_for('static', filename='uploads/' + verification.front_image) if verification else 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=200&auto=format&fit=crop' }}" alt="Front Preview" style="width: 100%; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--secondary);">
+                    <img id="frontPreview" src="{{ url_for('static', filename='uploads/' + verification.front_image) if verification and verification.front_image else 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=200&auto=format&fit=crop' }}" alt="Front Preview" style="width: 100%; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--secondary);">
                 </div>
-                <input type="file" name="front_image" accept="image/*" style="font-size:0.75rem; padding:0.4rem;" {% if not verification %}required{% endif %}>
+                <input type="file" name="front_image" accept="image/*" style="font-size:0.75rem; padding:0.4rem;" {% if not verification or not verification.front_image %}required{% endif %}>
             </div>
 
             <!-- SHOP INSIDE -->
             <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); text-align:center;">
                 <label style="font-weight:600; display:block;" class="mb-2">Shop Inside View *</label>
                 <div style="position:relative; display:inline-block;" class="mb-2">
-                    <img id="insidePreview" src="{{ url_for('static', filename='uploads/' + verification.inside_image) if verification else 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&auto=format&fit=crop' }}" alt="Inside Preview" style="width: 100%; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary);">
+                    <img id="insidePreview" src="{{ url_for('static', filename='uploads/' + verification.inside_image) if verification and verification.inside_image else 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&auto=format&fit=crop' }}" alt="Inside Preview" style="width: 100%; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary);">
                 </div>
-                <input type="file" name="inside_image" accept="image/*" style="font-size:0.75rem; padding:0.4rem;" {% if not verification %}required{% endif %}>
+                <input type="file" name="inside_image" accept="image/*" style="font-size:0.75rem; padding:0.4rem;" {% if not verification or not verification.inside_image %}required{% endif %}>
             </div>
 
             <!-- OWNER PHOTO -->
             <div class="form-group glass-panel" style="padding:1rem !important; background:rgba(255,255,255,0.02); text-align:center;">
                 <label style="font-weight:600; display:block;" class="mb-2">Owner Profile Photo *</label>
                 <div style="position:relative; display:inline-block;" class="mb-2">
-                    <img id="ownerPreview" src="{{ url_for('static', filename='uploads/' + verification.owner_photo) if verification else 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop' }}" alt="Owner Preview" style="width: 100%; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--success);">
+                    <img id="ownerPreview" src="{{ url_for('static', filename='uploads/' + verification.owner_photo) if verification and verification.owner_photo else 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop' }}" alt="Owner Preview" style="width: 100%; height: 120px; border-radius: 12px; object-fit: cover; border: 2px solid var(--success);">
                 </div>
-                <input type="file" name="owner_photo" accept="image/*" style="font-size:0.75rem; padding:0.4rem;" {% if not verification %}required{% endif %}>
+                <input type="file" name="owner_photo" accept="image/*" style="font-size:0.75rem; padding:0.4rem;" {% if not verification or not verification.owner_photo %}required{% endif %}>
             </div>
 
             <!-- BUSINESS PROOF -->

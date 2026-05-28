@@ -291,21 +291,35 @@ class ShopVerification(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     shop_id = db.Column(db.Integer, db.ForeignKey('shop.id', ondelete='CASCADE'), nullable=False)
-    status = db.Column(db.String(20), default="Pending") # Pending, Under Review, Verified, Rejected
-    phone_number = db.Column(db.String(20), nullable=False)
-    gst_number = db.Column(db.String(50), nullable=True)
     
-    # Image uploads filenames
-    front_image = db.Column(db.String(200), nullable=False)
-    inside_image = db.Column(db.String(200), nullable=False)
-    owner_photo = db.Column(db.String(200), nullable=False)
+    # Existing fields
+    status = db.Column(db.String(20), default="Pending") # Pending, Under Review, Verified, Rejected
+    phone_number = db.Column(db.String(20), nullable=True)
+    gst_number = db.Column(db.String(50), nullable=True)
+    front_image = db.Column(db.String(200), nullable=True)
+    inside_image = db.Column(db.String(200), nullable=True)
     business_proof = db.Column(db.String(200), nullable=True)
     submitted_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    # Required fields from prompt
+    owner_photo = db.Column(db.String(200), nullable=True)
+    shop_photo = db.Column(db.String(200), nullable=True)
+    location_link = db.Column(db.String(300), nullable=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    verification_status = db.Column(db.String(20), default="Pending")
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     shop = db.relationship('Shop', backref=db.backref('verification_rel', uselist=False, cascade="all, delete-orphan"))
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    @property
+    def verified_badge(self):
+        if self.verification_status == "Verified" or self.status == "Verified":
+            return "✨ <span class='verified-badge-magical' title='MiniMartPro Verified Shop'>☑️ Verified</span>"
+        return ""
 
 
 class PaymentMethods(db.Model):
@@ -315,11 +329,20 @@ class PaymentMethods(db.Model):
     shop_id = db.Column(db.Integer, db.ForeignKey('shop.id', ondelete='CASCADE'), nullable=False)
     upi_id = db.Column(db.String(100), nullable=True)
     qr_image = db.Column(db.String(200), nullable=True)
+    
+    # Existing fields
     gpay = db.Column(db.Boolean, default=False)
     phonepe = db.Column(db.Boolean, default=False)
     paytm = db.Column(db.Boolean, default=False)
     cod = db.Column(db.Boolean, default=True)
     bank_details = db.Column(db.String(500), nullable=True)
+
+    # Required fields from prompt
+    gpay_number = db.Column(db.String(50), nullable=True)
+    phonepe_number = db.Column(db.String(50), nullable=True)
+    paytm_number = db.Column(db.String(50), nullable=True)
+    cod_enabled = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     shop = db.relationship('Shop', backref=db.backref('payments_rel', uselist=False, cascade="all, delete-orphan"))
 
