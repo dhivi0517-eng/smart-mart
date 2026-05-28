@@ -122,6 +122,7 @@ class Order(db.Model):
     total = db.Column(db.Float, default=0)
     status = db.Column(db.String(20), default="Pending")
     payment_method = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

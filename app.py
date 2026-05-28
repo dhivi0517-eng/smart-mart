@@ -296,7 +296,8 @@ def profile():
             recent_orders=recent_orders,
             offers=offers,
             posts=posts,
-            completion_percentage=completion_percentage
+            completion_percentage=completion_percentage,
+            total_orders_count=len(orders)
         )
 
 @app.route('/profile/edit', methods=['GET', 'POST'])
@@ -1266,23 +1267,101 @@ def rate_product(product_id):
 # ================= CHATBOT =================
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
-    data = request.get_json()
+    data = request.get_json() or {}
     message = data.get('message', '')
+    context_data = data.get('context', {})
     
-    response = chatbot.process_message(message)
+    # Check if user is logged in to provide personalized context
+    user = current_user if (current_user and current_user.is_authenticated) else None
     
+    # Process message with role context, browse details, and active cart
+    response = chatbot.process_message(
+        message, 
+        user=user, 
+        context_data=context_data, 
+        cart=session.get('cart', {})
+    )
+    
+    # 1. Handle CUSTOMER multiple product cart additions
     if response.get("action") == "add_to_cart":
-        product_id = response.get("product_id")
-        quantity = response.get("quantity")
-        
+        products_to_add = response.get("products", [])
+        if not products_to_add and response.get("product_id"):
+            products_to_add = [{
+                "product_id": response.get("product_id"),
+                "quantity": response.get("quantity", 1),
+                "unit": "piece"
+            }]
+            
         if 'cart' not in session:
             session['cart'] = {}
-            
         cart = session['cart']
-        cart[str(product_id)] = cart.get(str(product_id), 0) + quantity
+        
+        for item in products_to_add:
+            pid = str(item.get("product_id"))
+            qty = float(item.get("quantity", 1.0))
+            unit = item.get("unit", "piece")
+            
+            p = db.session.get(Product, int(pid))
+            if p:
+                # Convert user unit to base price unit
+                qty_in_price_unit = convert_to_price_unit(qty, unit, p.price_unit)
+                cart[pid] = float(cart.get(pid, 0.0)) + qty_in_price_unit
+                
         session['cart'] = cart
         session.modified = True
+
+    # 2. Handle OWNER natural language product creation
+    elif response.get("action") == "add_product" and user and user.role == "owner":
+        p_name = response.get("product_name")
+        qty = response.get("quantity")
+        unit = response.get("unit", "piece")
+        price = response.get("price")
         
+        shop = Shop.query.filter_by(owner_id=user.id).first()
+        if shop and p_name and qty is not None and price is not None:
+            try:
+                # Update stock if already exists, else create new
+                existing_p = Product.query.filter_by(shop_id=shop.id, name=p_name).first()
+                if existing_p:
+                    existing_p.stock += float(qty)
+                    db.session.commit()
+                    response["message"] = f"✅ **Updated product inventory!** Increased *'{existing_p.name}'* stock by {qty} {unit}. New total stock: {existing_p.stock} {existing_p.price_unit}."
+                else:
+                    new_p = Product(
+                        name=p_name,
+                        description=f"Auto-generated via AI Assistant.",
+                        price=float(price),
+                        price_unit=unit,
+                        stock=float(qty),
+                        shop_id=shop.id
+                    )
+                    db.session.add(new_p)
+                    db.session.commit()
+                    response["message"] = f"✅ **Product Created Successfully!**\n\n*   **Name:** {p_name}\n*   **Price:** ₹ {price} per {unit}\n*   **Initial Stock:** {qty} {unit}\n\nInventory updated."
+            except Exception as db_err:
+                db.session.rollback()
+                response["message"] = f"❌ **Database error while creating product:** {str(db_err)}"
+
+    # 3. Handle OWNER natural language stock override adjustment
+    elif response.get("action") == "update_stock" and user and user.role == "owner":
+        p_name = response.get("product_name")
+        qty = response.get("quantity")
+        
+        shop = Shop.query.filter_by(owner_id=user.id).first()
+        if shop and p_name and qty is not None:
+            try:
+                products = Product.query.filter(Product.shop_id == shop.id, Product.name.ilike(f"%{p_name}%")).all()
+                if products:
+                    p = products[0]
+                    p.stock = float(qty)
+                    db.session.commit()
+                    response["message"] = f"✅ **Stock Adjusted Successfully!**\n\n*   **Product:** {p.name}\n*   **New Stock:** {p.stock} {p.price_unit}\n\nInventory list updated."
+                else:
+                    response["message"] = f"❌ Product *'{p_name}'* not found in your inventory. Did you mean to *'Add'* it?"
+            except Exception as db_err:
+                db.session.rollback()
+                response["message"] = f"❌ **Database error adjusting stock:** {str(db_err)}"
+                
     return jsonify(response)
 
 # ================= INIT =================
@@ -1319,6 +1398,16 @@ def check_and_update_db_schema():
                     print(f"Added column {col} to shop table.")
                 except Exception as col_err:
                     print(f"Column {col} to shop may already exist or cannot be added:", str(col_err))
+
+            # 4. Add created_at column to order table (SQLite and PostgreSQL)
+            try:
+                if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
+                    conn.execute(text('ALTER TABLE "order" ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'))
+                else:
+                    conn.execute(text('ALTER TABLE "order" ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;'))
+                print("Added column created_at to order table.")
+            except Exception as col_err:
+                print("Column created_at to order table may already exist or cannot be added:", str(col_err))
     except Exception as e:
         print("ERROR: Database schema check/update failed:", str(e))
 

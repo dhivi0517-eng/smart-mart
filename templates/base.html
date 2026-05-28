@@ -39,21 +39,22 @@
         {% if current_user.is_authenticated %}
 
             {% if current_user.role == "owner" %}
-                <a href="{{ url_for('owner_dashboard') }}">Dashboard</a>
-                <a href="{{ url_for('owner_orders') }}">Orders</a>
-                <a href="{{ url_for('analytics') }}">Analytics</a>
+                <a href="{{ url_for('owner_dashboard') }}">📊 Dashboard</a>
+                <a href="{{ url_for('owner_orders') }}">📦 Orders</a>
+                <a href="{{ url_for('analytics') }}">📈 Analytics</a>
+                <a href="{{ url_for('profile') }}">👤 Profile</a>
             {% else %}
-                <a href="{{ url_for('shop_list') }}">Shops</a>
-                <a href="{{ url_for('cart') }}">Cart</a>
-                <a href="{{ url_for('my_orders') }}">My Orders</a>
-                <a href="{{ url_for('profile') }}">Profile</a>
+                <a href="{{ url_for('shop_list') }}">🛍️ Shops</a>
+                <a href="{{ url_for('cart') }}">🛒 Cart</a>
+                <a href="{{ url_for('my_orders') }}">📦 My Orders</a>
+                <a href="{{ url_for('profile') }}">👤 Profile</a>
             {% endif %}
 
-            <a href="{{ url_for('logout') }}" class="logout">Logout</a>
+            <a href="{{ url_for('logout') }}" class="logout">🚪 Logout</a>
 
         {% else %}
-            <a href="{{ url_for('login') }}">Login</a>
-            <a href="{{ url_for('register') }}">Register</a>
+            <a href="{{ url_for('login') }}">🔑 Login</a>
+            <a href="{{ url_for('register') }}">📝 Register</a>
         {% endif %}
 
     </div>
@@ -81,30 +82,58 @@
 <div class="chat-widget">
     <div class="chat-window" id="chatWindow">
         <div class="chat-header">
-            <div style="display:flex; align-items:center; gap:0.5rem;">
-                <span class="chat-header-avatar">✨</span>
+            <div style="display:flex; align-items:center; gap:0.6rem;">
+                <div class="ai-header-orb">
+                    <span class="online-indicator"></span>
+                </div>
                 <div>
-                    <h3 style="margin:0; font-size:1rem; font-weight:600;">SaaS AI Assistant</h3>
-                    <small style="color:var(--success); font-size:0.7rem; font-weight:500;">🟢 Online & Active</small>
+                    <h3 style="margin:0; font-size:0.95rem; font-weight:600; color:#fff; letter-spacing:0.02em;">
+                        {% if current_user.is_authenticated and current_user.role == 'owner' %}
+                            MiniMartPro Business AI
+                        {% else %}
+                            MiniMartPro Shopping AI
+                        {% endif %}
+                    </h3>
+                    <small style="color:var(--primary); font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; gap:0.25rem;">
+                        <span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--primary); box-shadow:0 0 6px var(--primary-glow);"></span>
+                        Active SaaS Engine
+                    </small>
                 </div>
             </div>
-            <button class="close-chat" id="closeChatBtn">✕</button>
+            <button class="close-chat" id="closeChatBtn" aria-label="Close Chat">✕</button>
         </div>
         
         <div class="chat-messages" id="chatMessages">
             <div class="chat-message bot">
-                <div class="msg-avatar">✨</div>
+                <div class="msg-avatar">🤖</div>
                 <div class="msg-bubble-wrapper">
                     <div class="msg-bubble">
-                        Hello! 👋 I am your MiniMartPro AI assistant.<br><br>
-                        I can help you search our database for products, check live pricing, or add items to your cart! How can I help you today?
+                        {% if current_user.is_authenticated %}
+                            {% if current_user.role == 'owner' %}
+                                Welcome back Boss! 🏪 I am your **MiniMartPro Business Assistant**.<br><br>
+                                I can update product inventory, set stock overrides, or compile live Sales Analytics directly. Ask me questions like:
+                                <ul>
+                                    <li>📊 *'sales today'*</li>
+                                    <li>📈 *'weekly revenue'*</li>
+                                    <li>⚠️ *'low stock'*</li>
+                                </ul>
+                            {% else %}
+                                Welcome back **{{ current_user.username }}**! ✨ I am your **Personal Shopping Assistant**.<br><br>
+                                Ask me to search our database, check prices, or bundle items directly into your cart! For example, say:<br>
+                                *   🔍 *'do you have organic apples?'*
+                                *   🛒 *'add 2kg onion'*
+                            {% endif %}
+                        {% else %}
+                            Hello! 👋 I am your **MiniMartPro AI Assistant**.<br><br>
+                            Please log in to enable custom shopping suggestions, role-based store management, and natural language cart compilation!
+                        {% endif %}
                     </div>
-                    <span class="msg-time">Just Now</span>
+                    <span class="msg-time">System Init</span>
                 </div>
             </div>
             
             <div class="typing-indicator" id="typingIndicator">
-                <div class="msg-avatar">✨</div>
+                <div class="msg-avatar">🤖</div>
                 <div class="typing-dots">
                     <span></span><span></span><span></span>
                 </div>
@@ -112,14 +141,17 @@
         </div>
 
         <div class="chat-input-area">
-            <input type="text" id="chatInput" placeholder="Ask to find or add to cart..." autocomplete="off">
-            <button id="sendChatBtn">➤</button>
+            <input type="text" id="chatInput" placeholder="Ask anything to AI Assistant..." autocomplete="off">
+            <button id="sendChatBtn" aria-label="Send Message">➤</button>
         </div>
     </div>
     
-    <button class="chat-toggle" id="chatToggleBtn">
-        <span class="chat-toggle-icon">💬</span>
-        <span class="chat-toggle-label">AI Assistant</span>
+    <button class="chat-toggle" id="chatToggleBtn" aria-label="Open Chat">
+        <div class="ai-orb-core">
+            <svg viewBox="0 0 24 24" class="ai-orb-svg">
+                <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4M12,18A6,6 0 0,1 6,12C6,10.14 7.03,8.5 8.56,7.66L10.06,9.16C9.4,9.75 9,10.83 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12C15,10.83 14.6,9.75 13.94,9.16L15.44,7.66C16.97,8.5 18,10.14 18,12A6,6 0 0,1 12,18Z" />
+            </svg>
+        </div>
     </button>
 </div>
 
@@ -162,11 +194,56 @@
     const chatMessages = document.getElementById('chatMessages');
     const typingIndicator = document.getElementById('typingIndicator');
 
+    let greetingTriggered = false;
+
+    // Extract shop ID if browsing a shop page
+    function getBrowseContext() {
+        let shopId = null;
+        const pathMatch = window.location.pathname.match(/\/shop\/(\d+)/);
+        if (pathMatch) {
+            shopId = parseInt(pathMatch[1]);
+        }
+        return {
+            pathname: window.location.pathname,
+            shop_id: shopId
+        };
+    }
+
+    async function triggerShopGreeting() {
+        if (greetingTriggered) return;
+        
+        const context = getBrowseContext();
+        if (!context.shop_id) return; // Only trigger greetings when active inside a shop details page
+        
+        greetingTriggered = true;
+        typingIndicator.classList.add('active');
+        scrollToBottom();
+        
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    message: "Welcome greeting context initialization. Greet me, show personalized store catalog highlights, previous purchases in this store, and active deals in this store.",
+                    context: context
+                })
+            });
+            const data = await response.json();
+            
+            typingIndicator.classList.remove('active');
+            addMessage(data.message, 'bot');
+        } catch(e) {
+            typingIndicator.classList.remove('active');
+        }
+    }
+
     function toggleChat() {
         chatWindow.classList.toggle('active');
         if(chatWindow.classList.contains('active')) {
             chatInput.focus();
             scrollToBottom();
+            // Trigger automatic greeting context inside shop details pages
+            triggerShopGreeting();
         }
     }
 
@@ -218,7 +295,7 @@
         
         const avatar = document.createElement('div');
         avatar.className = 'msg-avatar';
-        avatar.innerText = sender === 'bot' ? '✨' : '👤';
+        avatar.innerText = sender === 'bot' ? '🤖' : '👤';
         
         const wrapper = document.createElement('div');
         wrapper.className = 'msg-bubble-wrapper';
@@ -253,10 +330,14 @@
         scrollToBottom();
 
         try {
+            const context = getBrowseContext();
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text })
+                body: JSON.stringify({ 
+                    message: text,
+                    context: context
+                })
             });
             const data = await response.json();
             
@@ -264,9 +345,10 @@
             typingIndicator.classList.remove('active');
             addMessage(data.message, 'bot');
             
-            if(data.action === 'add_to_cart') {
-                if(window.location.pathname === '/cart') {
-                    setTimeout(() => window.location.reload(), 1500);
+            // Reload cart page dynamically if products were updated/added
+            if(data.action === 'add_to_cart' || data.action === 'add_product' || data.action === 'update_stock') {
+                if(window.location.pathname === '/cart' || window.location.pathname === '/owner' || window.location.pathname.startsWith('/profile')) {
+                    setTimeout(() => window.location.reload(), 1800);
                 }
             }
         } catch(e) {
