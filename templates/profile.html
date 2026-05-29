@@ -311,6 +311,36 @@
         <!-- RIGHT PANEL: CONNECTED SHOPS & SUGGESTIONS -->
         <div class="profile-side-panel">
             
+            <!-- NOTIFICATIONS FEED -->
+            <div class="glass-panel mb-4">
+                <h3 style="font-size: 1.15rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; color: #fff; display:flex; justify-content:space-between; align-items:center;" class="mb-3">
+                    <span>📢 Alerts & Notifications</span>
+                    {% if unread_notifications_count > 0 %}
+                        <span class="badge Pending" style="font-size:0.7rem; padding:0.15rem 0.5rem; border-radius:10px;">{{ unread_notifications_count }} New</span>
+                    {% endif %}
+                </h3>
+                {% if user_notifications %}
+                    <div style="display:flex; flex-direction:column; gap:0.75rem; max-height:220px; overflow-y:auto;" class="scrollbar-thin">
+                        {% for n in user_notifications %}
+                            <div style="background:rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.04); padding:0.6rem; border-radius:10px; opacity: {% if n.is_read %}0.65{% else %}1.0{% endif %}; position:relative;">
+                                <div class="flex-between" style="align-items:center;">
+                                    <span style="font-size:0.82rem; font-weight:700; color:#fff;">{{ n.title }}</span>
+                                    {% if not n.is_read %}
+                                        <button onclick="markNotificationRead({{ n.id }}); this.parentElement.parentElement.style.opacity='0.65'; this.remove();" style="background:transparent; border:none; color:var(--primary); font-size:0.8rem; cursor:pointer; font-weight:800; padding:0; outline:none;" title="Mark as read">✓</button>
+                                    {% endif %}
+                                </div>
+                                <p style="margin:0.25rem 0 0 0; font-size:0.75rem; color:#94a3b8; line-height:1.45;">{{ n.message }}</p>
+                                <div style="text-align:right; margin-top:2px;">
+                                    <small style="font-size:0.6rem; color:var(--text-muted);">{{ n.created_at.strftime('%H:%M | %d %b') }}</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p style="color:var(--text-muted); font-size:0.9rem; text-align:center; padding:1rem 0; margin:0;">No system alerts recorded.</p>
+                {% endif %}
+            </div>
+
             <!-- CONNECTED SHOPS LIST -->
             <div class="glass-panel mb-4">
                 <h3 style="font-size: 1.15rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; color: #fff;" class="mb-3">🤝 Connected Stores ({{ connected_shops|length }})</h3>
@@ -574,6 +604,37 @@
 
         <!-- RIGHT PANEL: STORE MANAGEMENT QUICK BAR -->
         <div class="profile-side-panel">
+            
+            <!-- NOTIFICATIONS FEED -->
+            <div class="glass-panel mb-4">
+                <h3 style="font-size: 1.15rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; color: #fff; display:flex; justify-content:space-between; align-items:center;" class="mb-3">
+                    <span>📢 Alerts & Notifications</span>
+                    {% if unread_notifications_count > 0 %}
+                        <span class="badge Pending" style="font-size:0.7rem; padding:0.15rem 0.5rem; border-radius:10px;">{{ unread_notifications_count }} New</span>
+                    {% endif %}
+                </h3>
+                {% if user_notifications %}
+                    <div style="display:flex; flex-direction:column; gap:0.75rem; max-height:220px; overflow-y:auto;" class="scrollbar-thin">
+                        {% for n in user_notifications %}
+                            <div style="background:rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.04); padding:0.6rem; border-radius:10px; opacity: {% if n.is_read %}0.65{% else %}1.0{% endif %}; position:relative;">
+                                <div class="flex-between" style="align-items:center;">
+                                    <span style="font-size:0.82rem; font-weight:700; color:#fff;">{{ n.title }}</span>
+                                    {% if not n.is_read %}
+                                        <button onclick="markNotificationRead({{ n.id }}); this.parentElement.parentElement.style.opacity='0.65'; this.remove();" style="background:transparent; border:none; color:var(--primary); font-size:0.8rem; cursor:pointer; font-weight:800; padding:0; outline:none;" title="Mark as read">✓</button>
+                                    {% endif %}
+                                </div>
+                                <p style="margin:0.25rem 0 0 0; font-size:0.75rem; color:#94a3b8; line-height:1.45;">{{ n.message }}</p>
+                                <div style="text-align:right; margin-top:2px;">
+                                    <small style="font-size:0.6rem; color:var(--text-muted);">{{ n.created_at.strftime('%H:%M | %d %b') }}</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p style="color:var(--text-muted); font-size:0.9rem; text-align:center; padding:1rem 0; margin:0;">No system alerts recorded.</p>
+                {% endif %}
+            </div>
+
             <div class="glass-panel" style="display:flex; flex-direction:column; gap:1.2rem;">
                 <h3 style="font-size: 1.15rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.5rem; margin:0; color:#fff;">🛠️ Store Settings & Portal</h3>
                 

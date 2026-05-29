@@ -1,0 +1,910 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- PREMIUM GLASSMORPHIC SUPERADMIN STYLING -->
+<style>
+    :root {
+        --glass-bg: rgba(15, 23, 42, 0.45);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --neon-primary: #38bdf8;
+        --neon-secondary: #c084fc;
+        --neon-success: #34d399;
+        --neon-danger: #f87171;
+        --neon-warning: #fbbf24;
+        --glow-primary: 0 0 15px rgba(56, 189, 248, 0.35);
+        --glow-secondary: 0 0 15px rgba(192, 132, 252, 0.35);
+        --glow-success: 0 0 15px rgba(52, 211, 153, 0.3);
+        --glow-danger: 0 0 15px rgba(248, 113, 113, 0.35);
+    }
+
+    body {
+        background: #020617;
+        color: #f8fafc;
+    }
+
+    .super-dashboard-container {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        gap: 2rem;
+        margin: 1.5rem auto;
+        max-width: 1400px;
+        min-height: 85vh;
+        animation: pageLoad 0.5s ease-out;
+    }
+
+    /* GLASSMORPHIC SIDEBAR */
+    .super-sidebar {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px;
+        padding: 1.75rem 1rem;
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        height: fit-content;
+        position: sticky;
+        top: 90px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    }
+
+    .sidebar-header {
+        text-align: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 1.25rem;
+    }
+
+    .sidebar-header h3 {
+        margin: 0;
+        font-size: 1.15rem;
+        background: linear-gradient(135deg, var(--neon-secondary), var(--neon-primary));
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .sidebar-menu {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.8rem 1.25rem;
+        border-radius: 14px;
+        color: #94a3b8;
+        font-weight: 600;
+        font-size: 0.92rem;
+        text-decoration: none;
+        background: transparent;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-align: left;
+        width: 100%;
+        outline: none;
+    }
+
+    .menu-item:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .menu-item.active {
+        color: #fff;
+        background: rgba(56, 189, 248, 0.08);
+        border-color: rgba(56, 189, 248, 0.25);
+        text-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+        box-shadow: inset 0 0 12px rgba(56, 189, 248, 0.05);
+    }
+
+    /* MAIN VIEWPANEL */
+    .super-viewpanel {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .tab-pane-super {
+        display: none;
+        animation: paneSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .tab-pane-super.active {
+        display: block;
+    }
+
+    @keyframes paneSlide {
+        from {
+            opacity: 0;
+            transform: translateY(15px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* GLASS PANEL PANELS */
+    .super-panel {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px;
+        padding: 2.25rem !important;
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+        margin-bottom: 2rem;
+    }
+
+    .panel-header {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .panel-header h2 {
+        margin: 0;
+        font-size: 1.4rem;
+        color: #fff;
+    }
+
+    /* NEON ANALTICS CARDS */
+    .super-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .super-stat-card {
+        background: rgba(30, 41, 59, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 20px;
+        padding: 1.5rem;
+        text-align: left;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .super-stat-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .stat-glow-blue { border-color: rgba(56, 189, 248, 0.25); }
+    .stat-glow-blue:hover { box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+    .stat-glow-purple { border-color: rgba(192, 132, 252, 0.25); }
+    .stat-glow-purple:hover { box-shadow: 0 0 15px rgba(192, 132, 252, 0.2); }
+    .stat-glow-green { border-color: rgba(52, 211, 153, 0.25); }
+    .stat-glow-green:hover { box-shadow: 0 0 15px rgba(52, 211, 153, 0.15); }
+    .stat-glow-orange { border-color: rgba(251, 191, 36, 0.25); }
+    .stat-glow-orange:hover { box-shadow: 0 0 15px rgba(251, 191, 36, 0.15); }
+
+    .super-stat-card h4 {
+        margin: 0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        color: #94a3b8;
+        letter-spacing: 0.05em;
+    }
+
+    .super-stat-value {
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin-top: 0.5rem;
+        color: #fff;
+    }
+
+    /* PREMIUM TABLES */
+    .super-table-container {
+        overflow-x: auto;
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(15, 23, 42, 0.2);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    th {
+        background: rgba(30, 41, 59, 0.55);
+        color: #94a3b8;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    td {
+        padding: 1rem 1.25rem;
+        font-size: 0.92rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        color: #cbd5e1;
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    tr:hover td {
+        background: rgba(255, 255, 255, 0.015);
+    }
+
+    /* ACTIONS BUTTONS */
+    .action-btn-pill {
+        border-radius: 8px;
+        padding: 0.35rem 0.85rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .action-approve {
+        background: rgba(52, 211, 153, 0.12);
+        color: var(--neon-success);
+        border-color: rgba(52, 211, 153, 0.25);
+    }
+    .action-approve:hover {
+        background: var(--neon-success);
+        color: #000;
+        box-shadow: 0 0 10px rgba(52, 211, 153, 0.3);
+    }
+
+    .action-reject {
+        background: rgba(248, 113, 113, 0.12);
+        color: var(--neon-danger);
+        border-color: rgba(248, 113, 113, 0.25);
+    }
+    .action-reject:hover {
+        background: var(--neon-danger);
+        color: #fff;
+        box-shadow: 0 0 10px rgba(248, 113, 113, 0.3);
+    }
+
+    .action-reupload {
+        background: rgba(251, 191, 36, 0.12);
+        color: var(--neon-warning);
+        border-color: rgba(251, 191, 36, 0.25);
+    }
+    .action-reupload:hover {
+        background: var(--neon-warning);
+        color: #000;
+        box-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+    }
+
+    .search-bar-neon {
+        width: 100%;
+        background: rgba(15, 23, 42, 0.6) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 12px !important;
+        padding: 0.6rem 1rem !important;
+        color: #fff !important;
+        font-size: 0.9rem !important;
+        margin-bottom: 1.25rem;
+        transition: all 0.3s ease;
+    }
+
+    .search-bar-neon:focus {
+        border-color: var(--neon-primary) !important;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.3) !important;
+    }
+
+    @media (max-width: 992px) {
+        .super-dashboard-container {
+            grid-template-columns: 1fr;
+        }
+        .super-sidebar {
+            position: relative;
+            top: 0;
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+
+<div class="super-dashboard-container">
+    
+    <!-- SIDEBAR NAVIGATION -->
+    <div class="super-sidebar">
+        <div class="sidebar-header">
+            <h3>👑 Super Administration</h3>
+            <span style="font-size:0.72rem; color:var(--neon-primary); font-weight:700; text-shadow:0 0 4px rgba(56,189,248,0.2);">MiniMartPro AI Engine</span>
+        </div>
+        <div class="sidebar-menu">
+            <button class="menu-item active" onclick="switchSuperTab('tab-overview', this)">📊 Command Overview</button>
+            <button class="menu-item" onclick="switchSuperTab('tab-verification', this)">⚡ Verification Console</button>
+            <button class="menu-item" onclick="switchSuperTab('tab-users', this)">👥 User Command</button>
+            <button class="menu-item" onclick="switchSuperTab('tab-shops', this)">🏪 Storefront Directory</button>
+            <button class="menu-item" onclick="switchSuperTab('tab-orders', this)">📦 Order Transactions</button>
+            <button class="menu-item" onclick="switchSuperTab('tab-gps', this)">🛰️ Coordinate Audits</button>
+            <button class="menu-item" onclick="switchSuperTab('tab-ai', this)">🤖 AI Metrics Monitor</button>
+            <button class="menu-item" onclick="switchSuperTab('tab-broadcaster', this)">📢 Global Broadcaster</button>
+        </div>
+    </div>
+
+    <!-- VIEW PANEL CONTENT -->
+    <div class="super-viewpanel">
+        
+        <!-- =========================================
+             TAB 1: COMMAND OVERVIEW
+             ========================================= -->
+        <div id="tab-overview" class="tab-pane-super active">
+            <div class="super-panel">
+                <div class="panel-header">
+                    <h2>📊 Command & Analytics Core</h2>
+                    <span class="badge Active" style="font-size:0.75rem; padding:0.25rem 0.8rem;">Live Streaming</span>
+                </div>
+                
+                <!-- METRIC CARDS -->
+                <div class="super-stats-grid mb-4">
+                    <div class="super-stat-card stat-glow-blue">
+                        <h4>👥 Active Members</h4>
+                        <div class="super-stat-value">{{ active_users }} / {{ total_users }}</div>
+                    </div>
+                    <div class="super-stat-card stat-glow-purple">
+                        <h4>🏪 Verified Retailers</h4>
+                        <div class="super-stat-value">{{ verified_shops }} / {{ shops|length }}</div>
+                    </div>
+                    <div class="super-stat-card stat-glow-green">
+                        <h4>📈 Gross Earnings</h4>
+                        <div class="super-stat-value">₹ {{ "%.2f"|format(total_revenue) }}</div>
+                    </div>
+                    <div class="super-stat-card stat-glow-orange">
+                        <h4>🤖 AI Assistant Audits</h4>
+                        <div class="super-stat-value">{{ chatbot_clicks + recommendation_clicks }}</div>
+                    </div>
+                </div>
+
+                <div class="super-stats-grid mb-4">
+                    <div class="super-stat-card">
+                        <h4>📦 Total Invoices</h4>
+                        <div class="super-stat-value" style="font-size:1.8rem;">{{ total_orders }} Billing Logs</div>
+                    </div>
+                    <div class="super-stat-card">
+                        <h4>🏷️ Marketplace Products</h4>
+                        <div class="super-stat-value" style="font-size:1.8rem;">{{ total_products }} Items</div>
+                    </div>
+                    <div class="super-stat-card">
+                        <h4>🤝 Connected Channels</h4>
+                        <div class="super-stat-value" style="font-size:1.8rem;">{{ active_connections }} Pairs</div>
+                    </div>
+                </div>
+
+                <!-- LIVE LOG ACTIVITY FEED -->
+                <h3 class="mt-4 mb-3" style="font-size:1.15rem; color:#fff; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:0.4rem;">🛡️ Live Superadmin Analytics Audits</h3>
+                {% if analytics %}
+                    <div style="max-height: 250px; overflow-y:auto; display:flex; flex-direction:column; gap:0.5rem; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.04); padding:1rem; border-radius:12px;" class="scrollbar-thin">
+                        {% for log in analytics %}
+                            <div style="font-size:0.82rem; font-family:monospace; color:#94a3b8; background:rgba(255,255,255,0.01); border-bottom:1px dashed rgba(255,255,255,0.03); padding-bottom:0.4rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+                                <span>⚡ [{{ log.event_type.upper() }}] User: {{ log.user.username if log.user else 'Anonymous' }} - {{ log.details }}</span>
+                                <span style="color:var(--text-muted);">{{ log.created_at.strftime('%H:%M:%S | %d %b') }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p style="color:var(--text-muted); font-size:0.9rem;">No analytics events recorded yet. Talking to the chatbot or viewing profiles will populate events here.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- =========================================
+             TAB 2: VERIFICATION CONSOLE
+             ========================================= -->
+        <div id="tab-verification" class="tab-pane-super">
+            <div class="super-panel">
+                <div class="panel-header">
+                    <h2>⚡ Storefront Verification Command</h2>
+                </div>
+                
+                {% if verifications %}
+                    <div style="display:flex; flex-direction:column; gap:2rem;">
+                        {% for v in verifications %}
+                            <div class="super-stat-card" style="background: rgba(15,23,42,0.3); border:1px solid rgba(255,255,255,0.08); padding:1.75rem;">
+                                
+                                <div class="flex-between mb-3 pb-2" style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                    <div>
+                                        <h3 style="margin:0; font-size:1.2rem; color:#fff;">🏪 Store: {{ v.shop.name }}</h3>
+                                        <small style="color:var(--text-muted);">Code: <code>{{ v.shop.shop_code }}</code> | Owner: {{ v.shop.owner.username }}</small>
+                                    </div>
+                                    <span class="badge {{ 'Completed' if v.status == 'Verified' else ('Pending' if v.status == 'Under Review' else 'Expired') }}" style="font-size:0.75rem; padding:0.3rem 1rem;">
+                                        Status: {{ v.status }}
+                                    </span>
+                                </div>
+
+                                <!-- SUB GRID: CREDENTIAL DETAILS -->
+                                <div style="display:grid; grid-template-columns: 1fr 2fr; gap:1.5rem;" class="mobile-stack mb-3">
+                                    
+                                    <!-- PROPS -->
+                                    <div style="background: rgba(255,255,255,0.015); border:1px solid rgba(255,255,255,0.04); padding:1rem; border-radius:12px; display:flex; flex-direction:column; gap:0.6rem;">
+                                        <h4 style="margin:0; font-size:0.85rem; color:var(--neon-primary); text-transform:uppercase;">Registration Credentials</h4>
+                                        <span style="font-size:0.85rem;">📞 Phone: <b>{{ v.phone_number }}</b></span>
+                                        <span style="font-size:0.85rem;">💼 GSTIN: <code>{{ v.gst_number or 'N/A' }}</code></span>
+                                        <span style="font-size:0.85rem; line-height:1.4;">📍 Coordinates: <br><a href="https://www.google.com/maps?q={{ v.latitude }},{{ v.longitude }}" target="_blank" style="color:var(--neon-secondary); text-decoration:underline;"><code>{{ v.latitude or 'No Lat' }}, {{ v.longitude or 'No Lng' }}</code> 🛰️</a></span>
+                                        <span style="font-size:0.85rem; line-height:1.4; color:var(--text-muted);">🗺️ Address: <br><small>{{ v.location_link or 'No Address Geocoded.' }}</small></span>
+                                    </div>
+
+                                    <!-- PHOTO EVIDENCE CAROUSEL -->
+                                    <div>
+                                        <h4 style="margin:0 0 0.5rem 0; font-size:0.85rem; color:var(--neon-secondary); text-transform:uppercase;">Photographic Proof Evidence</h4>
+                                        <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:0.5rem;" class="mobile-stack">
+                                            
+                                            <div style="text-align:center;">
+                                                <a href="{{ url_for('static', filename='uploads/' + v.front_image) if v.front_image else '#' }}" target="_blank">
+                                                    <img src="{{ url_for('static', filename='uploads/' + v.front_image) if v.front_image else 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?q=80&w=150' }}" style="width:100%; height:75px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                                                </a>
+                                                <small style="font-size:0.65rem; color:var(--text-muted); display:block; margin-top:2px;">Front View</small>
+                                            </div>
+
+                                            <div style="text-align:center;">
+                                                <a href="{{ url_for('static', filename='uploads/' + v.inside_image) if v.inside_image else '#' }}" target="_blank">
+                                                    <img src="{{ url_for('static', filename='uploads/' + v.inside_image) if v.inside_image else 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=150' }}" style="width:100%; height:75px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                                                </a>
+                                                <small style="font-size:0.65rem; color:var(--text-muted); display:block; margin-top:2px;">Inside View</small>
+                                            </div>
+
+                                            <div style="text-align:center;">
+                                                <a href="{{ url_for('static', filename='uploads/' + v.owner_photo) if v.owner_photo else '#' }}" target="_blank">
+                                                    <img src="{{ url_for('static', filename='uploads/' + v.owner_photo) if v.owner_photo else 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150' }}" style="width:100%; height:75px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                                                </a>
+                                                <small style="font-size:0.65rem; color:var(--text-muted); display:block; margin-top:2px;">Owner Portrait</small>
+                                            </div>
+
+                                            <div style="text-align:center;">
+                                                <a href="{{ url_for('static', filename='uploads/' + v.shop_photo) if v.shop_photo else '#' }}" target="_blank">
+                                                    <img src="{{ url_for('static', filename='uploads/' + v.shop_photo) if v.shop_photo else 'https://images.unsplash.com/photo-1580793241553-e9f1cce1d158?q=80&w=150' }}" style="width:100%; height:75px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                                                </a>
+                                                <small style="font-size:0.65rem; color:var(--text-muted); display:block; margin-top:2px;">Signboard</small>
+                                            </div>
+
+                                            <div style="text-align:center;">
+                                                {% if v.business_proof %}
+                                                    <a href="{{ url_for('static', filename='uploads/' + v.business_proof) }}" target="_blank">
+                                                        <img src="{{ url_for('static', filename='uploads/' + v.business_proof) }}" style="width:100%; height:75px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                                                    </a>
+                                                {% else %}
+                                                    <div style="width:100%; height:75px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.01); border:1px dashed rgba(255,255,255,0.1); border-radius:8px; font-size:0.65rem; color:var(--text-muted);">N/A</div>
+                                                {% endif %}
+                                                <small style="font-size:0.65rem; color:var(--text-muted); display:block; margin-top:2px;">Biz Proof</small>
+                                            </div>
+
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- ACTIONS TOOLBAR -->
+                                <div style="display:flex; justify-content:flex-end; gap:0.5rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:1rem; margin-top:1rem;">
+                                    {% if v.status != 'Verified' %}
+                                        <form action="{{ url_for('superadmin_verification_action', verification_id=v.id, action='request_reupload') }}" method="POST" style="margin:0;">
+                                            <button type="submit" class="action-btn-pill action-reupload">🔄 Request Re-upload</button>
+                                        </form>
+                                        <form action="{{ url_for('superadmin_verification_action', verification_id=v.id, action='reject') }}" method="POST" style="margin:0;">
+                                            <button type="submit" class="action-btn-pill action-reject">✕ Reject Application</button>
+                                        </form>
+                                        <form action="{{ url_for('superadmin_verification_action', verification_id=v.id, action='approve') }}" method="POST" style="margin:0;">
+                                            <button type="submit" class="action-btn-pill action-approve">❇️ Approve & Verify</button>
+                                        </form>
+                                    {% else %}
+                                        <span style="color:var(--neon-success); font-weight:700; display:flex; align-items:center; gap:4px; font-size:0.9rem;">✅ Approved & Badge Activated!</span>
+                                    {% endif %}
+                                </div>
+
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div style="text-align:center; padding:3rem;" class="empty-state">
+                        <span style="font-size:3rem;">📋</span>
+                        <h4 class="mt-2">No verification applications submitted</h4>
+                        <p style="color:var(--text-muted);">Store owners will list here once they submit coordinate locations and credentials.</p>
+                    </div>
+                {% endif %}
+
+            </div>
+        </div>
+
+        <!-- =========================================
+             TAB 3: USER COMMAND
+             ========================================= -->
+        <div id="tab-users" class="tab-pane-super">
+            <div class="super-panel">
+                <div class="panel-header">
+                    <h2>👥 Registered User Database</h2>
+                </div>
+
+                <input type="text" id="userSearchInput" class="search-bar-neon" placeholder="Search users by name, email, or role..." onkeyup="filterUserTable()">
+
+                <div class="super-table-container">
+                    <table id="superUserTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Account Role</th>
+                                <th>Active Status</th>
+                                <th>Administration Hub Command</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                                <tr>
+                                    <td style="font-family:monospace; font-weight:600;">#{{ u.id }}</td>
+                                    <td><b>{{ u.username }}</b></td>
+                                    <td><code>{{ u.email }}</code></td>
+                                    <td>
+                                        <span class="badge {{ 'Completed' if u.role == 'admin' else ('Pending' if u.role == 'owner' else 'Accepted') }}" style="font-size:0.7rem;">
+                                            {{ u.role|upper }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if u.is_suspended %}
+                                            <span style="color:var(--neon-danger); font-weight:700;">🚫 BANNED</span>
+                                        {% else %}
+                                            <span style="color:var(--neon-success); font-weight:700;">❇️ ACTIVE</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if u.email == super_admin_email %}
+                                            <span style="color:var(--neon-secondary); font-weight:700;">👑 Master root account</span>
+                                        {% else %}
+                                            <form action="{{ url_for('superadmin_toggle_suspend', user_id=u.id) }}" method="POST" style="margin:0;">
+                                                {% if u.is_suspended %}
+                                                    <button type="submit" class="action-btn-pill action-approve" style="min-width:130px;">🔓 Reactivate</button>
+                                                {% else %}
+                                                    <button type="submit" class="action-btn-pill action-reject" style="min-width:130px;" onsubmit="return confirm('Ban user account?');">🚫 Ban / Suspend</button>
+                                                {% endif %}
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- =========================================
+             TAB 4: STOREFRONT DIRECTORY
+             ========================================= -->
+        <div id="tab-shops" class="tab-pane-super">
+            <div class="super-panel">
+                <div class="panel-header">
+                    <h2>🏪 Storefront Directory Hub</h2>
+                </div>
+
+                <input type="text" id="shopSearchInput" class="search-bar-neon" placeholder="Search storefronts by name or code..." onkeyup="filterShopTable()">
+
+                <div class="super-table-container">
+                    <table id="superShopTable">
+                        <thead>
+                            <tr>
+                                <th>Shop Code</th>
+                                <th>Store Name</th>
+                                <th>Branding Category</th>
+                                <th>Integrity Badges</th>
+                                <th>Active Status</th>
+                                <th>Central Command Control</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in shops %}
+                                <tr>
+                                    <td><code>{{ s.shop_code }}</code></td>
+                                    <td><b>{{ s.name }}</b></td>
+                                    <td><span style="color:var(--neon-primary);">{{ s.category }}</span></td>
+                                    <td>
+                                        {% if s.is_verified %}
+                                            {{ s.verified_badge|safe }}
+                                        {% else %}
+                                            <span style="color:var(--text-muted); font-size:0.75rem;">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if s.is_disabled %}
+                                            <span style="color:var(--neon-danger); font-weight:700;">🔒 LOCKED</span>
+                                        {% else %}
+                                            <span style="color:var(--neon-success); font-weight:700;">🔓 ACTIVE</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form action="{{ url_for('superadmin_toggle_disable', shop_id=s.id) }}" method="POST" style="margin:0; display:inline-block;">
+                                            {% if s.is_disabled %}
+                                                <button type="submit" class="action-btn-pill action-approve" style="min-width:120px;">🔓 Unlock / Enable</button>
+                                            {% else %}
+                                                <button type="submit" class="action-btn-pill action-reject" style="min-width:120px;" onsubmit="return confirm('Disable store?');">🔒 Lock / Disable</button>
+                                            {% endif %}
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- =========================================
+             TAB 5: ORDER TRANSACTIONS
+             ========================================= -->
+        <div id="tab-orders" class="tab-pane-super">
+            <div class="super-panel">
+                <div class="panel-header">
+                    <h2>📦 Central Order Transactions</h2>
+                </div>
+
+                {% if orders %}
+                    <div class="super-table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Buyer Name</th>
+                                    <th>Storefront</th>
+                                    <th>Transaction Billing</th>
+                                    <th>Payment Option</th>
+                                    <th>Verification Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for o in orders %}
+                                    <tr>
+                                        <td style="font-weight:600; color:#fff;">#{{ o.id }}</td>
+                                        <td>{{ o.customer.username if o.customer else 'Guest Customer' }}</td>
+                                        <td><b>{{ o.shop.name if o.shop else 'N/A' }}</b></td>
+                                        <td style="color:var(--neon-success); font-weight:700;">₹ {{ "%.2f"|format(o.total) }}</td>
+                                        <td><code>{{ o.payment_method|upper }}</code></td>
+                                        <td>
+                                            <span class="badge {{ o.status }}">{{ o.status }}</span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div style="text-align:center; padding:3rem;" class="empty-state">
+                        <span style="font-size:3rem;">📦</span>
+                        <h4 class="mt-2">No invoices recorded in marketplace</h4>
+                    </div>
+                {% endif %}
+
+            </div>
+        </div>
+
+        <!-- =========================================
+             TAB 6: COORDINATE AUDITS
+             ========================================= -->
+        <div id="tab-gps" class="tab-pane-super">
+            <div class="super-panel">
+                <div class="panel-header">
+                    <h2>🛰️ GPS Coordinate Audits</h2>
+                </div>
+
+                <div class="super-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Storefront</th>
+                                <th>Latitude</th>
+                                <th>Longitude</th>
+                                <th>Geocoded Address Link</th>
+                                <th>Authenticity Audit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in shops %}
+                                <tr>
+                                    <td><b>{{ s.name }}</b></td>
+                                    {% if s.location_rel %}
+                                        <td style="font-family:monospace;">{{ s.location_rel.latitude }}</td>
+                                        <td style="font-family:monospace;">{{ s.location_rel.longitude }}</td>
+                                        <td style="font-size:0.8rem; max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                            {{ s.location_rel.map_address or 'No map address geocoded.' }}
+                                        </td>
+                                        <td>
+                                            <a href="https://www.google.com/maps?q={{ s.location_rel.latitude }},{{ s.location_rel.longitude }}" target="_blank" class="action-btn-pill action-approve">
+                                                🗺️ Inspect GPS Pins
+                                            </a>
+                                        </td>
+                                    {% else %}
+                                        <td colspan="3" style="color:var(--text-muted); text-align:center; font-size:0.8rem;">No GPS locations pinned</td>
+                                        <td><span style="color:var(--neon-danger); font-size:0.75rem; font-weight:700;">⚠️ Coordinates Missing</span></td>
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- =========================================
+             TAB 7: AI METRICS MONITOR
+             ========================================= -->
+        <div id="tab-ai" class="tab-pane-super">
+            <div class="super-panel">
+                <div class="panel-header">
+                    <h2>🤖 AI SaaS Metrics Monitor</h2>
+                </div>
+
+                <div class="super-stats-grid mb-4">
+                    <div class="super-stat-card stat-glow-blue" style="text-align:center;">
+                        <span style="font-size:2.5rem;">💬</span>
+                        <h4 class="mt-2">AI Chatbot Queries</h4>
+                        <div class="super-stat-value">{{ chatbot_clicks }} Chats</div>
+                    </div>
+                    <div class="super-stat-card stat-glow-purple" style="text-align:center;">
+                        <span style="font-size:2.5rem;">💫</span>
+                        <h4 class="mt-2">Smart Picks Rendered</h4>
+                        <div class="super-stat-value">{{ recommendation_clicks }} Queries</div>
+                    </div>
+                </div>
+
+                <h3 style="font-size:1.15rem; color:#fff;" class="mb-3">Latest AI SaaS Engine Access Records</h3>
+                <div class="super-table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Event Type</th>
+                                <th>User</th>
+                                <th>Access Log Description</th>
+                                <th>Audited Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in analytics if log.event_type in ['chatbot_chat', 'recommender_use'] %}
+                                <tr>
+                                    <td>
+                                        <span class="badge {{ 'Completed' if log.event_type == 'chatbot_chat' else 'Active' }}" style="font-size:0.7rem;">
+                                            {{ log.event_type|upper }}
+                                        </span>
+                                    </td>
+                                    <td><b>{{ log.user.username if log.user else 'Anonymous User' }}</b></td>
+                                    <td style="font-family:monospace; font-size:0.8rem; color:#94a3b8;">{{ log.details }}</td>
+                                    <td><small>{{ log.created_at.strftime('%d %b, %I:%M %p') }}</small></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- =========================================
+             TAB 8: GLOBAL BROADCASTER
+             ========================================= -->
+        <div id="tab-broadcaster" class="tab-pane-super">
+            <div class="super-panel">
+                <div class="panel-header">
+                    <h2>📢 Global Broadcaster Console</h2>
+                </div>
+
+                <form action="{{ url_for('superadmin_broadcast_notification') }}" method="POST">
+                    
+                    <div class="form-group mb-3">
+                        <label>Broadcast Title / Alert Heading *</label>
+                        <input type="text" name="title" placeholder="e.g. System Restocking Alerts!" required>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label>Alert Message Description *</label>
+                        <textarea name="message" rows="4" placeholder="Type your broadcast message content or warning text..." required style="width:100%; resize:none;"></textarea>
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label>Target Audience *</label>
+                        <select name="target_user_id" style="width:100%;">
+                            <option value="all">📢 Global System-wide Broadcast (All Registered Users)</option>
+                            {% for u in users %}
+                                <option value="{{ u.id }}">👤 Target specific user: {{ u.username }} ({{ u.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="submit" class="btn" style="min-width:200px; border-radius:10px; box-shadow: 0 0 15px rgba(192, 132, 252, 0.4);">
+                            🚀 Launch Alert Broadcast
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- INTERACTIVE SUPERADMIN SCRIPTS -->
+<script>
+    function switchSuperTab(tabId, btnElement) {
+        // Hide all super tab panes
+        const panes = document.querySelectorAll('.tab-pane-super');
+        panes.forEach(p => p.classList.remove('active'));
+
+        // De-activate all sidebar buttons
+        const btns = document.querySelectorAll('.menu-item');
+        btns.forEach(b => b.classList.remove('active'));
+
+        // Activate the selected tab pane and button
+        document.getElementById(tabId).classList.add('active');
+        btnElement.classList.add('active');
+    }
+
+    // Dynamic search filters
+    function filterUserTable() {
+        const input = document.getElementById("userSearchInput");
+        const filter = input.value.toLowerCase();
+        const table = document.getElementById("superUserTable");
+        const tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) {
+            let found = false;
+            const tdArray = tr[i].getElementsByTagName("td");
+            for (let j = 0; j < tdArray.length; j++) {
+                const td = tdArray[j];
+                if (td) {
+                    const textValue = td.textContent || td.innerText;
+                    if (textValue.toLowerCase().indexOf(filter) > -1) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            tr[i].style.display = found ? "" : "none";
+        }
+    }
+
+    function filterShopTable() {
+        const input = document.getElementById("shopSearchInput");
+        const filter = input.value.toLowerCase();
+        const table = document.getElementById("superShopTable");
+        const tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) {
+            let found = false;
+            const tdArray = tr[i].getElementsByTagName("td");
+            for (let j = 0; j < tdArray.length; j++) {
+                const td = tdArray[j];
+                if (td) {
+                    const textValue = td.textContent || td.innerText;
+                    if (textValue.toLowerCase().indexOf(filter) > -1) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            tr[i].style.display = found ? "" : "none";
+        }
+    }
+</script>
+
+{% endblock %}

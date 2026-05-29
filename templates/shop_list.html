@@ -106,8 +106,8 @@
 
             <div style="padding: 1.25rem;">
                 <div class="flex-between mb-2">
-                    <h3 class="card-title" style="margin-bottom:0; font-size:1.15rem; color:#fff;">
-                        {{ shop.name }}
+                    <h3 class="card-title" style="margin-bottom:0; font-size:1.15rem; color:#fff; display:inline-flex; align-items:center; gap:0.35rem;">
+                        {{ shop.name }} {{ shop.verified_badge|safe }}
                     </h3>
                     <span class="badge rating-badge">⭐️ {{ shop.average_rating }}</span>
                 </div>

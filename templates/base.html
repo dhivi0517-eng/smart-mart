@@ -38,6 +38,45 @@
 
         {% if current_user.is_authenticated %}
 
+            <!-- NOTIFICATION HUB BELL -->
+            <div class="nav-notification-container" style="position:relative; display:inline-block; margin-right:0.5rem; vertical-align:middle;">
+                <button id="notifBellBtn" style="background:transparent; border:none; cursor:pointer; font-size:1.25rem; color:#fff; position:relative; padding:0.25rem; outline:none;">
+                    🔔
+                    {% if unread_notifications_count > 0 %}
+                        <span style="position:absolute; top:-2px; right:-2px; background:var(--danger); color:white; border-radius:50%; font-size:0.65rem; font-weight:800; padding:1px 5px; min-width:14px; text-align:center;">{{ unread_notifications_count }}</span>
+                    {% endif %}
+                </button>
+                <!-- POPUP NOTIFICATIONS DRAWER -->
+                <div id="notifDrawer" style="display:none; position:absolute; right:0; top:40px; width:310px; background:rgba(15,23,42,0.98); backdrop-filter:blur(30px); border:1px solid rgba(255,255,255,0.12); border-radius:18px; padding:1.2rem; box-shadow:0 15px 35px rgba(0,0,0,0.65), 0 0 20px var(--primary-glow); z-index:99999;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:0.6rem; margin-bottom:0.75rem;">
+                        <h4 style="margin:0; font-size:0.95rem; color:#fff; font-weight:700;">📢 Alerts Center</h4>
+                        <button onclick="clearAllNotifications()" style="background:transparent; border:none; font-size:0.75rem; color:var(--primary); cursor:pointer; font-weight:700; outline:none;">Clear All</button>
+                    </div>
+                    <div style="max-height: 240px; overflow-y:auto; display:flex; flex-direction:column; gap:0.6rem; scrollbar-width:thin;" class="scrollbar-thin">
+                        {% if user_notifications %}
+                            {% for n in user_notifications %}
+                                <div id="notif-item-{{ n.id }}" style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); padding:0.65rem; border-radius:10px; display:flex; flex-direction:column; gap:0.2rem; transition:all 0.3s ease; text-align:left;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <b style="font-size:0.8rem; color:#fff; font-weight:700;">{{ n.title }}</b>
+                                        {% if not n.is_read %}
+                                            <button onclick="markNotificationRead({{ n.id }})" style="background:transparent; border:none; color:var(--primary); font-size:0.8rem; cursor:pointer; font-weight:800; outline:none;" title="Mark as read">✓</button>
+                                        {% endif %}
+                                    </div>
+                                    <p style="font-size:0.75rem; color:#94a3b8; margin:0.15rem 0 0 0; line-height:1.4; font-weight:500;">{{ n.message }}</p>
+                                    <small style="font-size:0.6rem; color:var(--text-muted); text-align:right; margin-top:2px;">{{ n.created_at.strftime('%H:%M | %d %b') }}</small>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:1.5rem 0; margin:0; font-weight:500;">No new alerts</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if is_super_admin() %}
+                <a href="{{ url_for('superadmin_dashboard') }}" style="color:var(--secondary); text-shadow:0 0 8px var(--secondary-glow); font-weight:800;">👑 Super Admin</a>
+            {% endif %}
+
             {% if current_user.role == "owner" %}
                 <a href="{{ url_for('owner_dashboard') }}">📊 Dashboard</a>
                 <a href="{{ url_for('owner_orders') }}">📦 Orders</a>
@@ -361,6 +400,54 @@
     chatInput.addEventListener('keypress', function(e) {
         if(e.key === 'Enter') sendMessage();
     });
+
+    // NOTIFICATION BELL DRAWER JS MECHANICS
+    const notifBellBtn = document.getElementById('notifBellBtn');
+    const notifDrawer = document.getElementById('notifDrawer');
+    if (notifBellBtn && notifDrawer) {
+        notifBellBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            notifDrawer.style.display = notifDrawer.style.display === 'none' ? 'block' : 'none';
+        });
+        document.addEventListener('click', function(e) {
+            if (!notifDrawer.contains(e.target) && !notifBellBtn.contains(e.target)) {
+                notifDrawer.style.display = 'none';
+            }
+        });
+    }
+
+    async function markNotificationRead(notifId) {
+        try {
+            const response = await fetch(`/api/notification/read/${notifId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if(response.ok) {
+                const item = document.getElementById(`notif-item-${notifId}`);
+                if (item) {
+                    item.style.opacity = '0.5';
+                    const btn = item.querySelector('button');
+                    if (btn) btn.remove();
+                }
+            }
+        } catch(err) {
+            console.error("Failed to mark notification read:", err);
+        }
+    }
+
+    async function clearAllNotifications() {
+        try {
+            const response = await fetch('/api/notification/clear_all', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if(response.ok) {
+                setTimeout(() => window.location.reload(), 150);
+            }
+        } catch(err) {
+            console.error("Failed to clear notifications:", err);
+        }
+    }
 </script>
 
 </body>

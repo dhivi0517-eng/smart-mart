@@ -30,11 +30,12 @@ class User(UserMixin, db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     otp = db.Column(db.String(6), nullable=True)
     otp_expiry = db.Column(db.DateTime, nullable=True)
+    is_suspended = db.Column(db.Boolean, default=False)
 
     # ✅ ADD THIS (VERY IMPORTANT)
     @property
     def is_active(self):
-        return self.is_verified
+        return self.is_verified and not self.is_suspended
    
     # Relationships
     shop = db.relationship('Shop', backref='owner', uselist=False, lazy=True)
@@ -60,6 +61,7 @@ class Shop(db.Model):
     banner_image = db.Column(db.String(200), nullable=True)
     category = db.Column(db.String(100), default="General")
     bio = db.Column(db.String(500), nullable=True)
+    is_disabled = db.Column(db.Boolean, default=False)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -399,4 +401,33 @@ def verified_badge(self):
 
 Shop.is_verified = is_verified
 Shop.verification_status = verification_status
-Shop.verified_badge = verified_badge
+Shop.verified_badge = verified_badge
+
+
+class Notification(db.Model):
+    __tablename__ = 'notification'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=True) # None = broadcast to all
+    title = db.Column(db.String(150), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('notifications_rel', lazy=True, cascade="all, delete-orphan"))
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class Analytics(db.Model):
+    __tablename__ = 'analytics'
+    id = db.Column(db.Integer, primary_key=True)
+    event_type = db.Column(db.String(100), nullable=False) # chatbot_chat, recommender_use, shop_view, page_visit
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    details = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('analytics_logs', lazy=True))
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)

@@ -4,18 +4,54 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
 import io
+from functools import wraps
 from flask_mail import Mail, Message
 import random
 import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
-from models import db, User, Shop, Product, Order, OrderItem, ShopRating, ProductRating, ShopConnection, ShopPost, ShopOffer, ProfileCustomization, Wishlist, ShopLocation, ShopVerification, PaymentMethods, UPIPayments, GPSLogs
+from models import db, User, Shop, Product, Order, OrderItem, ShopRating, ProductRating, ShopConnection, ShopPost, ShopOffer, ProfileCustomization, Wishlist, ShopLocation, ShopVerification, PaymentMethods, UPIPayments, GPSLogs, Notification, Analytics
 from recommender import recommender
 from chatbot import bot as chatbot
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'multistore_secret')
+
+# ==========================================
+# SUPER ADMIN SECURITY DECORATORS & CONTEXT
+# ==========================================
+def super_admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('login'))
+        super_admin_email = os.environ.get("SUPER_ADMIN_EMAIL")
+        if not super_admin_email or current_user.email != super_admin_email:
+            flash("Access Denied: Super Admin permissions required! ❌")
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.context_processor
+def inject_super_admin_check():
+    super_admin_email = os.environ.get("SUPER_ADMIN_EMAIL")
+    def is_super_admin():
+        if not current_user.is_authenticated:
+            return False
+        return super_admin_email and current_user.email == super_admin_email
+    return dict(is_super_admin=is_super_admin, super_admin_email=super_admin_email)
+
+@app.context_processor
+def inject_notifications():
+    if current_user.is_authenticated:
+        # Retrieve user notifications + system broadcast (user_id is None)
+        notifs = Notification.query.filter(
+            (Notification.user_id == current_user.id) | (Notification.user_id == None)
+        ).order_by(Notification.created_at.desc()).limit(8).all()
+        unread_count = sum(1 for n in notifs if not n.is_read)
+        return dict(user_notifications=notifs, unread_notifications_count=unread_count)
+    return dict(user_notifications=[], unread_notifications_count=0)
 
 # ==========================================
 # QUANTITY & UNIT UTILITIES
@@ -258,6 +294,17 @@ def profile():
 
         try:
             recommendations = recommender.get_hybrid_recommendations(user_id=current_user.id, limit=8)
+            try:
+                log_event = Analytics(
+                    event_type='recommender_use',
+                    user_id=current_user.id,
+                    details=f"Generated {len(recommendations)} recommendations for profile view"
+                )
+                db.session.add(log_event)
+                db.session.commit()
+            except Exception as analytics_err:
+                db.session.rollback()
+                print("[DEBUG LOG] Recommender analytics log failed:", analytics_err)
         except:
             recommendations = []
 
@@ -820,6 +867,259 @@ def admin_verification_reject(verification_id):
     db.session.commit()
     flash(f"Verification request for '{verification.shop.name}' was rejected.")
     return redirect(url_for('admin_dashboard'))
+
+
+# ==========================================
+# SUPER ADMIN CONTROLLERS & SERVICES
+# ==========================================
+
+@app.route('/superadmin')
+@app.route('/superadmin/dashboard')
+@login_required
+@super_admin_required
+def superadmin_dashboard():
+    users = User.query.all()
+    shops = Shop.query.all()
+    products = Product.query.all()
+    orders = Order.query.all()
+    verifications = ShopVerification.query.order_by(ShopVerification.submitted_at.desc()).all()
+    analytics = Analytics.query.order_by(Analytics.created_at.desc()).all()
+    notifications = Notification.query.order_by(Notification.created_at.desc()).all()
+    
+    # Calculate key metrics
+    total_users = len(users)
+    total_owners = sum(1 for u in users if u.role == 'owner')
+    total_products = len(products)
+    total_orders = len(orders)
+    verified_shops = sum(1 for s in shops if s.is_verified)
+    
+    # Active users count: verified and not suspended
+    active_users = sum(1 for u in users if u.is_active)
+    
+    # Total revenue from completed/paid/delivered orders
+    total_revenue = sum(o.total for o in orders if o.status in ['Completed', 'Paid', 'Delivered'])
+    
+    # Chatbot and recommendation counts from analytics logs
+    chatbot_clicks = sum(1 for a in analytics if a.event_type == 'chatbot_chat')
+    recommendation_clicks = sum(1 for a in analytics if a.event_type == 'recommender_use')
+    active_connections = sum(len(s.connections) for s in shops)
+    
+    return render_template(
+        "superadmin_dashboard.html",
+        users=users,
+        shops=shops,
+        products=products,
+        orders=orders,
+        verifications=verifications,
+        analytics=analytics[:100],  # Limit to latest 100 entries for efficiency
+        notifications=notifications[:100],
+        total_users=total_users,
+        total_owners=total_owners,
+        total_products=total_products,
+        total_orders=total_orders,
+        verified_shops=verified_shops,
+        active_users=active_users,
+        total_revenue=total_revenue,
+        chatbot_clicks=chatbot_clicks,
+        recommendation_clicks=recommendation_clicks,
+        active_connections=active_connections
+    )
+
+@app.route('/superadmin/user/toggle_suspend/<int:user_id>', methods=['POST'])
+@login_required
+@super_admin_required
+def superadmin_toggle_suspend(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.email == os.environ.get("SUPER_ADMIN_EMAIL"):
+        flash("Safety Lock: You cannot suspend your own super admin account! ❌")
+        return redirect(url_for('superadmin_dashboard'))
+        
+    user.is_suspended = not user.is_suspended
+    db.session.commit()
+    
+    action = "suspended" if user.is_suspended else "reactivated"
+    print(f"[SUPERADMIN LOG] User {user.username} (ID: {user.id}) account status changed to {action.upper()}.")
+    
+    # Write to Analytics log
+    try:
+        log = Analytics(
+            event_type="user_ban_toggle",
+            user_id=current_user.id,
+            details=f"Super Admin {action} user '{user.username}' (Email: {user.email})"
+        )
+        db.session.add(log)
+    except Exception as e:
+        print("[SUPERADMIN] Failed to write ban log:", e)
+        
+    # Send Notification to targeted user
+    notif = Notification(
+        user_id=user.id,
+        title=f"Account Updates: {action.title()} Status",
+        message=f"Your MiniMartPro account has been officially {action} by the Super Administration Hub. If you believe this is an error, please reach out to support."
+    )
+    db.session.add(notif)
+    db.session.commit()
+    
+    flash(f"User account '{user.username}' successfully {action.upper()}! 🛡️")
+    return redirect(url_for('superadmin_dashboard'))
+
+@app.route('/superadmin/shop/toggle_disable/<int:shop_id>', methods=['POST'])
+@login_required
+@super_admin_required
+def superadmin_toggle_disable(shop_id):
+    shop = Shop.query.get_or_404(shop_id)
+    shop.is_disabled = not shop.is_disabled
+    db.session.commit()
+    
+    action = "disabled" if shop.is_disabled else "enabled"
+    print(f"[SUPERADMIN LOG] Shop '{shop.name}' (ID: {shop.id}) storefront status changed to {action.upper()}.")
+    
+    # Write to Analytics log
+    try:
+        log = Analytics(
+            event_type="shop_disable_toggle",
+            user_id=current_user.id,
+            details=f"Super Admin {action} shop '{shop.name}' (Code: {shop.shop_code})"
+        )
+        db.session.add(log)
+    except Exception as e:
+        print("[SUPERADMIN] Failed to write shop log:", e)
+        
+    # Send Notification to owner
+    if shop.owner:
+        notif = Notification(
+            user_id=shop.owner.id,
+            title=f"Storefront Alerts: {action.title()} Status",
+            message=f"Your store '{shop.name}' has been {action} by the Super Administration Hub. Customers cannot view your products while it is disabled."
+        )
+        db.session.add(notif)
+        
+    db.session.commit()
+    flash(f"Storefront '{shop.name}' successfully {action.upper()}! 🏪")
+    return redirect(url_for('superadmin_dashboard'))
+
+@app.route('/superadmin/verification/action/<int:verification_id>/<string:action>', methods=['POST'])
+@login_required
+@super_admin_required
+def superadmin_verification_action(verification_id, action):
+    verification = ShopVerification.query.get_or_404(verification_id)
+    
+    if action == 'approve':
+        verification.status = 'Verified'
+        verification.verification_status = 'Verified'
+        msg_content = "Congratulations! Your store verification request has been APPROVED by the Super Administration Hub! You have unlocked your magical glowing verified badge. ✨"
+        flash(f"Storefront '{verification.shop.name}' successfully VERIFIED! Badge active. ❇️")
+    elif action == 'reject':
+        verification.status = 'Rejected'
+        verification.verification_status = 'Rejected'
+        msg_content = "Your storefront verification request was rejected. Please review your credentials and submit accurate photos."
+        flash(f"Verification request for '{verification.shop.name}' has been REJECTED! ❌")
+    elif action == 'request_reupload':
+        verification.status = 'Under Review'
+        verification.verification_status = 'Under Review'
+        # Clear paths to trigger owner re-upload form state
+        verification.front_image = ""
+        verification.inside_image = ""
+        verification.owner_photo = ""
+        verification.shop_photo = ""
+        msg_content = "The Super Administration Hub requests you to re-upload your verification proofs. Please visit your shop verification console and upload clear images."
+        flash(f"Re-upload request sent successfully to shop '{verification.shop.name}'! 🔄")
+    else:
+        flash("Invalid verification action specified! ❌")
+        return redirect(url_for('superadmin_dashboard'))
+        
+    print(f"[SUPERADMIN LOG] Shop Verification ID {verification.id} ({verification.shop.name}) action: {action.upper()}.")
+    
+    # Write to Analytics log
+    try:
+        log = Analytics(
+            event_type="shop_verification_action",
+            user_id=current_user.id,
+            details=f"Super Admin processed verification for '{verification.shop.name}': Action={action}"
+        )
+        db.session.add(log)
+    except Exception as e:
+        print("[SUPERADMIN] Failed to write verification log:", e)
+        
+    # Send Notification to owner
+    if verification.shop.owner:
+        notif = Notification(
+            user_id=verification.shop.owner.id,
+            title="Branding Alert: Shop Verification Update",
+            message=msg_content
+        )
+        db.session.add(notif)
+        
+    db.session.commit()
+    return redirect(url_for('superadmin_dashboard'))
+
+@app.route('/superadmin/notifications/broadcast', methods=['POST'])
+@login_required
+@super_admin_required
+def superadmin_broadcast_notification():
+    title = request.form.get('title')
+    message = request.form.get('message')
+    target_user_id = request.form.get('target_user_id')
+    
+    if not title or not message:
+        flash("Missing title or message body! ❌")
+        return redirect(url_for('superadmin_dashboard'))
+        
+    uid = None
+    target_name = "Global Broadcast"
+    if target_user_id and target_user_id != 'all':
+        try:
+            uid = int(target_user_id)
+            target_user = User.query.get(uid)
+            if target_user:
+                target_name = f"User '{target_user.username}'"
+        except:
+            uid = None
+            
+    notif = Notification(
+        user_id=uid,
+        title=title,
+        message=message
+    )
+    db.session.add(notif)
+    
+    # Log analytics event
+    try:
+        log = Analytics(
+            event_type="admin_notification_sent",
+            user_id=current_user.id,
+            details=f"Super Admin broadcasted notification '{title}' to: {target_name}"
+        )
+        db.session.add(log)
+    except:
+        pass
+        
+    db.session.commit()
+    flash(f"Notification broadcasted successfully to {target_name.upper()}! 📢")
+    return redirect(url_for('superadmin_dashboard'))
+
+@app.route('/api/notification/read/<int:notification_id>', methods=['POST'])
+@login_required
+def read_notification(notification_id):
+    notif = Notification.query.get_or_404(notification_id)
+    if notif.user_id and notif.user_id != current_user.id:
+        return jsonify({"status": "error", "message": "Unauthorized access."}), 403
+        
+    notif.is_read = True
+    db.session.commit()
+    return jsonify({"status": "success", "message": "Notification marked as read."})
+
+@app.route('/api/notification/clear_all', methods=['POST'])
+@login_required
+def clear_all_notifications():
+    # Mark user specific and unread global notifications as read
+    notifs = Notification.query.filter(
+        (Notification.user_id == current_user.id) | (Notification.user_id == None)
+    ).all()
+    for n in notifs:
+        n.is_read = True
+    db.session.commit()
+    return jsonify({"status": "success", "message": "All notifications marked as read."})
 
 
 
@@ -1632,6 +1932,20 @@ def api_chat():
         cart=session.get('cart', {})
     )
     
+    # Log chatbot analytics event
+    try:
+        uid = current_user.id if current_user.is_authenticated else None
+        log_event = Analytics(
+            event_type='chatbot_chat',
+            user_id=uid,
+            details=f"User queried: '{message[:60]}...'"
+        )
+        db.session.add(log_event)
+        db.session.commit()
+    except Exception as analytics_err:
+        db.session.rollback()
+        print("[DEBUG LOG] Chatbot analytics log failed:", analytics_err)
+    
     # 1. Handle CUSTOMER multiple product cart additions
     if response.get("action") == "add_to_cart":
         products_to_add = response.get("products", [])
@@ -1721,13 +2035,34 @@ def check_and_update_db_schema():
     try:
         from sqlalchemy import text
         with db.engine.begin() as conn:
-            # 1. PostgreSQL User table migration
-            if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;'))
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS otp VARCHAR(6);'))
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS otp_expiry TIMESTAMP;'))
-                print("PostgreSQL user table columns verified/created successfully.")
-            
+            # 1. User & Shop table suspensions/disabled migrations (SQLite & PostgreSQL support)
+            try:
+                if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS otp VARCHAR(6);'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS otp_expiry TIMESTAMP;'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT FALSE;'))
+                else:
+                    try:
+                        conn.execute(text('ALTER TABLE "user" ADD COLUMN is_suspended BOOLEAN DEFAULT FALSE;'))
+                    except Exception as e:
+                        pass # Column may already exist
+                print("User table suspension columns verified/created successfully.")
+            except Exception as schema_err:
+                print("User table suspension migration warning:", schema_err)
+
+            try:
+                if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
+                    conn.execute(text('ALTER TABLE shop ADD COLUMN IF NOT EXISTS is_disabled BOOLEAN DEFAULT FALSE;'))
+                else:
+                    try:
+                        conn.execute(text('ALTER TABLE shop ADD COLUMN is_disabled BOOLEAN DEFAULT FALSE;'))
+                    except Exception as e:
+                        pass # Column may already exist
+                print("Shop table disabled columns verified/created successfully.")
+            except Exception as schema_err:
+                print("Shop table disabled migration warning:", schema_err)
+
             # 2. Add price_unit column to product table (SQLite and PostgreSQL)
             try:
                 if "postgresql" in app.config['SQLALCHEMY_DATABASE_URI']:
