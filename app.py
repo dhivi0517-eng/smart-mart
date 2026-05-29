@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, flash, session, send_file, jsonify
+from flask import Flask, render_template, redirect, url_for, request, flash, session, send_file, jsonify, send_from_directory
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -122,6 +122,11 @@ else:
 
 # Ensure the upload directory is automatically created
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Custom route to serve uploaded files seamlessly from /tmp/uploads on Vercel or static/uploads locally
+@app.route('/static/uploads/<path:filename>')
+def serve_upload(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 # Mail Configuration
@@ -399,6 +404,12 @@ def owner_verification_submit():
         flash("Setup your store first! 🏪")
         return redirect(url_for('owner_dashboard'))
 
+    # Ensure uploads folder is created automatically
+    try:
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    except Exception as e:
+        print(f"[DEBUG LOG] Failed to create upload folder: {e}")
+
     phone_number = request.form.get('phone_number')
     gst_number = request.form.get('gst_number')
     latitude = request.form.get('latitude')
@@ -414,42 +425,100 @@ def owner_verification_submit():
 
     # Retrieve or create verification record
     verification = ShopVerification.query.filter_by(shop_id=shop.id).first()
+    is_new_verification = False
     if not verification:
-        verification = ShopVerification(shop_id=shop.id, phone_number=phone_number)
+        is_new_verification = True
+        verification = ShopVerification(
+            shop_id=shop.id, 
+            phone_number=phone_number,
+            front_image="",
+            inside_image="",
+            business_proof="",
+            owner_photo="",
+            shop_photo=""
+        )
         db.session.add(verification)
 
-    verification.phone_number = phone_number
-    verification.gst_number = gst_number
-    verification.status = "Under Review" # Transitions back to review on edits
-    verification.verification_status = "Under Review"
-    verification.latitude = lat
-    verification.longitude = lng
-    verification.location_link = map_address
+    # Required files validation list
+    required_keys = ['front_image', 'inside_image', 'owner_photo', 'shop_photo']
+    all_keys = ['front_image', 'inside_image', 'owner_photo', 'shop_photo', 'business_proof']
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'webp'}
 
-    # Save coordinate location records
-    location = ShopLocation.query.filter_by(shop_id=shop.id).first()
-    if not location:
-        location = ShopLocation(shop_id=shop.id, latitude=lat, longitude=lng)
-        db.session.add(location)
+    # 1. Validation for missing required files
+    for key in required_keys:
+        f = request.files.get(key)
+        existing_val = getattr(verification, key, None)
+        # Missing if no file is uploaded (or filename is empty) AND no existing filename is recorded
+        if (not f or f.filename == "") and not existing_val:
+            flash(f"Required verification image missing: {key.replace('_', ' ').title()} ❌")
+            if is_new_verification:
+                db.session.rollback()
+            return redirect(url_for('owner_verification'))
 
-    location.latitude = lat
-    location.longitude = lng
-    location.map_address = map_address
+    # 2. Process and save uploaded images
+    try:
+        import uuid
+        for file_key in all_keys:
+            f = request.files.get(file_key)
+            if f and f.filename != "":
+                # Validate case-insensitive extension
+                ext = f.filename.split('.')[-1].lower() if '.' in f.filename else ''
+                if ext not in allowed_extensions:
+                    flash(f"Invalid file extension for {file_key.replace('_', ' ').title()}. Only PNG, JPG, JPEG, and WebP are allowed! ❌")
+                    if is_new_verification:
+                        db.session.rollback()
+                    return redirect(url_for('owner_verification'))
+                
+                # Generate unique filename to prevent conflict
+                safe_name = secure_filename(f.filename)
+                unique_prefix = uuid.uuid4().hex[:8]
+                filename = f"verify_{shop.id}_{file_key}_{unique_prefix}_{safe_name}"
+                save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                
+                # Save file safely
+                f.save(save_path)
+                print(f"[DEBUG LOG] Successfully saved uploaded file for {file_key}: filename={filename}, path={save_path}")
+                
+                setattr(verification, file_key, filename)
+            else:
+                # If file was not uploaded, keep the old value if it exists, or set an empty string (to satisfy NOT NULL)
+                existing_val = getattr(verification, file_key, None)
+                if not existing_val:
+                    setattr(verification, file_key, "")
+                    print(f"[DEBUG LOG] No upload for {file_key}; defaulted to empty string.")
+                else:
+                    print(f"[DEBUG LOG] Preserved existing file for {file_key}: {existing_val}")
 
-    # Handle multiple image file uploads
-    for file_key in ['front_image', 'inside_image', 'owner_photo', 'business_proof']:
-        f = request.files.get(file_key)
-        if f and f.filename != "":
-            filename = secure_filename(f.filename)
-            filename = f"verify_{shop.id}_{file_key}_{filename}"
-            f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            setattr(verification, file_key, filename)
-            if file_key == 'front_image':
-                verification.shop_photo = filename
+        # Update other fields
+        verification.phone_number = phone_number
+        verification.gst_number = gst_number
+        verification.status = "Under Review"
+        verification.verification_status = "Under Review"
+        verification.latitude = lat
+        verification.longitude = lng
+        verification.location_link = map_address
 
-    db.session.commit()
-    flash("Verification credentials submitted successfully! Under active review. ⏱️")
-    return redirect(url_for('profile'))
+        # Save coordinate location records
+        location = ShopLocation.query.filter_by(shop_id=shop.id).first()
+        if not location:
+            location = ShopLocation(shop_id=shop.id, latitude=lat, longitude=lng)
+            db.session.add(location)
+
+        location.latitude = lat
+        location.longitude = lng
+        location.map_address = map_address
+
+        # Commit everything safely
+        db.session.commit()
+        print(f"[DEBUG LOG] Database insert/update succeeded for Shop ID: {shop.id}")
+        flash("Verification credentials submitted successfully! Under active review. ⏱️")
+        return redirect(url_for('profile'))
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[DEBUG LOG] Database insert/update or file saving failed: {str(e)}")
+        flash("An internal server error occurred while processing your verification request. Please try again! ❌")
+        return redirect(url_for('owner_verification'))
 
 
 # ==========================================

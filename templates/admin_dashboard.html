@@ -101,7 +101,7 @@
                             <!-- UPLOADED IMAGES GALLERY -->
                             <div>
                                 <h4 style="margin:0 0 0.5rem 0; font-size:0.9rem; color:var(--secondary); text-transform:uppercase; letter-spacing:0.02em;">Uploaded Photo Evidence</h4>
-                                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:0.75rem;" class="mobile-stack">
+                                <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:0.75rem;" class="mobile-stack">
                                     <div style="text-align:center;">
                                         <a href="{{ url_for('static', filename='uploads/' + v.front_image) }}" target="_blank">
                                             <img src="{{ url_for('static', filename='uploads/' + v.front_image) }}" style="width:100%; height:90px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
@@ -119,6 +119,12 @@
                                             <img src="{{ url_for('static', filename='uploads/' + v.owner_photo) }}" style="width:100%; height:90px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
                                         </a>
                                         <small style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:2px;">Owner Portrait</small>
+                                    </div>
+                                    <div style="text-align:center;">
+                                        <a href="{{ url_for('static', filename='uploads/' + v.shop_photo) }}" target="_blank">
+                                            <img src="{{ url_for('static', filename='uploads/' + (v.shop_photo if v.shop_photo else '')) }}" style="width:100%; height:90px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+                                        </a>
+                                        <small style="font-size:0.7rem; color:var(--text-muted); display:block; margin-top:2px;">Shop Signboard</small>
                                     </div>
                                     <div style="text-align:center;">
                                         {% if v.business_proof %}
