@@ -234,9 +234,7 @@
                                 {% for r in wishlisted_products %}
                                     <div class="card product-marketplace-card">
                                         <div class="product-marketplace-img-box">
-                                            {% if r.image %}
-                                                <img src="{{ url_for('static', filename='uploads/' + r.image) }}" alt="{{ r.name }}" class="card-img" style="margin-bottom:0; height:120px;">
-                                            {% endif %}
+                                            <img src="{{ r.image_url }}" alt="{{ r.name }}" class="card-img" style="margin-bottom:0; height:120px;" onerror="console.warn('[IMAGE AUDIT] Failed to load wishlist image:', this.src); this.onerror=null; this.src='/static/images/placeholder-product.svg';" data-actual-src="{{ r.image or '' }}">
                                             <span class="product-marketplace-rating">⭐️ {{ r.average_rating }}</span>
                                         </div>
 
@@ -279,9 +277,7 @@
                                 {% for r in recommendations %}
                                     <div class="fav-card glass-panel" style="display:flex; flex-direction:column; justify-content:space-between; padding: 1rem;">
                                         <div>
-                                            {% if r.image %}
-                                                <img src="{{ url_for('static', filename='uploads/' + r.image) }}" alt="Product Image" style="width:100%; height:110px; object-fit:cover; border-radius:10px; margin-bottom:0.5rem;">
-                                            {% endif %}
+                                            <img src="{{ r.image_url }}" alt="Product Image" style="width:100%; height:110px; object-fit:cover; border-radius:10px; margin-bottom:0.5rem;" onerror="console.warn('[IMAGE AUDIT] Failed to load favorite pick image:', this.src); this.onerror=null; this.src='/static/images/placeholder-product.svg';" data-actual-src="{{ r.image or '' }}">
                                             <h5 style="margin:0; font-size:0.95rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ r.name }}</h5>
                                             <small style="color: var(--primary); font-weight:600; display:block; margin: 0.3rem 0;">₹ {{ r.price }}</small>
                                             <small style="color:var(--text-muted); display:block; font-size:0.75rem;">Store: {{ r.shop.name }}</small>

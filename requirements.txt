@@ -10,3 +10,4 @@ scikit-learn
 google-genai
 python-dotenv
 reportlab
+cloudinary

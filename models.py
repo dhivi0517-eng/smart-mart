@@ -111,6 +111,17 @@ class Product(db.Model):
             return 0.0
         return round(sum(r.rating for r in ratings) / len(ratings), 1)
 
+    @property
+    def image_url(self):
+        # Professional fallback handling for empty, None, or invalid image strings
+        if not self.image or self.image.strip() == "" or self.image.lower() == "none" or self.image.lower() == "null":
+            return "/static/images/placeholder-product.svg"
+        # Support cloud hosting paths (Cloudinary / Supabase Storage etc.)
+        if self.image.startswith(("http://", "https://")):
+            return self.image
+        # Support local uploads fallback
+        return f"/static/uploads/{self.image}"
+
 
 # =========================
 # ORDER MODEL

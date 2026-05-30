@@ -30,9 +30,7 @@
                 {% for product in products %}
                 <tr>
                     <td>
-                        {% if product.image %}
-                        <img src="{{ url_for('static', filename='uploads/' + product.image) }}" class="card-img" style="width:60px; height:60px; margin-bottom:0; object-fit: cover; border-radius: 8px;">
-                        {% endif %}
+                        <img src="{{ product.image_url }}" class="card-img" style="width:60px; height:60px; margin-bottom:0; object-fit: cover; border-radius: 8px;" onerror="console.warn('[IMAGE AUDIT] Failed to load owner product image:', this.src); this.onerror=null; this.src='/static/images/placeholder-product.svg';" data-actual-src="{{ product.image or '' }}">
                     </td>
                     <td style="font-weight:500;">
                         <a href="{{ url_for('product_details', product_id=product.id) }}" style="color: white; text-decoration: none; font-weight: 600; border-bottom: 1px dashed rgba(255,255,255,0.3);">

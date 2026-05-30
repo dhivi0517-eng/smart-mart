@@ -15,13 +15,7 @@
             
             <!-- Left Side: Image -->
             <div style="flex: 1; min-width: 300px; max-width: 100%;">
-                {% if product.image %}
-                <img src="{{ url_for('static', filename='uploads/' + product.image) }}" style="width: 100%; max-height: 400px; object-fit: cover; border-radius: 16px; border: 1px solid var(--card-border); box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
-                {% else %}
-                <div style="width: 100%; height: 300px; background: rgba(255,255,255,0.05); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 3rem; color: rgba(255,255,255,0.2); border: 1px dashed var(--card-border);">
-                    📦
-                </div>
-                {% endif %}
+                <img src="{{ product.image_url }}" style="width: 100%; max-height: 400px; object-fit: cover; border-radius: 16px; border: 1px solid var(--card-border); box-shadow: 0 8px 32px rgba(0,0,0,0.3);" onerror="console.warn('[IMAGE AUDIT] Failed to load product detail image:', this.src); this.onerror=null; this.src='/static/images/placeholder-product.svg';" data-actual-src="{{ product.image or '' }}">
             </div>
 
             <!-- Right Side: Product Details & Order Form -->
@@ -127,9 +121,7 @@
     <div class="recommendation-grid">
         {% for r in recommendations %}
         <div class="recommendation-card">
-            {% if r.image %}
-            <img src="{{ url_for('static', filename='uploads/' + r.image) }}" class="recommendation-card-img">
-            {% endif %}
+            <img src="{{ r.image_url }}" class="recommendation-card-img" onerror="console.warn('[IMAGE AUDIT] Failed to load recommended image:', this.src); this.onerror=null; this.src='/static/images/placeholder-product.svg';" data-actual-src="{{ r.image or '' }}">
             <h4 class="recommendation-card-title"><a href="{{ url_for('product_details', product_id=r.id) }}" style="color:white; text-decoration:none;">{{ r.name }}</a></h4>
             <div class="recommendation-card-price">₹ {{ r.price }}</div>
             <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" class="recommendation-form-container" style="display:flex; gap:0.5rem;">

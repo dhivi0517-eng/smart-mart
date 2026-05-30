@@ -16,6 +16,74 @@ from recommender import recommender
 from chatbot import bot as chatbot
 
 app = Flask(__name__)
+
+# ==========================================
+# CLOUDINARY CLOUD STORAGE CONFIGURATION
+# ==========================================
+import cloudinary
+import cloudinary.uploader
+
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    secure=True
+)
+
+def upload_product_image_helper(image_file):
+    """
+    Validates and uploads product image to Cloudinary (cloud storage) if configured.
+    Falls back to local file upload path if Cloudinary is unconfigured or fails.
+    Returns: (image_path_or_url, storage_type)
+    """
+    if not image_file or image_file.filename == "":
+        return None, None
+
+    # Validate file path and extension
+    filename = secure_filename(image_file.filename)
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if ext not in {'jpg', 'jpeg', 'png', 'webp'}:
+        raise ValueError("Unsupported file format! Please upload JPG, JPEG, PNG, or WEBP.")
+
+    cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
+    api_key = os.environ.get("CLOUDINARY_API_KEY")
+    api_secret = os.environ.get("CLOUDINARY_API_SECRET")
+
+    # Cloudinary Upload Flow
+    if cloud_name and api_key and api_secret:
+        try:
+            print(f"[IMAGE AUDIT LOG] Attempting Cloudinary upload for filename: {filename}")
+            upload_result = cloudinary.uploader.upload(
+                image_file,
+                folder="minimartpro/products",
+                resource_type="image"
+            )
+            secure_url = upload_result.get("secure_url")
+            if secure_url:
+                print(f"[IMAGE AUDIT LOG] Cloudinary upload successful! Public URL: {secure_url}")
+                return secure_url, "cloud"
+            else:
+                print("[IMAGE AUDIT LOG] Cloudinary upload response had no secure_url. Falling back to local.")
+        except Exception as e:
+            print(f"[IMAGE AUDIT LOG] Cloudinary upload failed: {str(e)}. Falling back to local.")
+    else:
+        print("[IMAGE AUDIT LOG] Cloudinary credentials not configured in environment variables. Falling back to local.")
+
+    # Local Storage Fallback Flow
+    unique_filename = f"prod_{int(datetime.datetime.now().timestamp())}_{filename}"
+    upload_path = app.config.get('UPLOAD_FOLDER', 'static/uploads')
+    
+    try:
+        os.makedirs(upload_path, exist_ok=True)
+        save_path = os.path.join(upload_path, unique_filename)
+        # Reset stream just in case it was read by Cloudinary SDK
+        image_file.seek(0)
+        image_file.save(save_path)
+        print(f"[IMAGE AUDIT LOG] Successfully saved uploaded file locally. path={save_path}")
+        return unique_filename, "local"
+    except Exception as local_err:
+        print(f"[IMAGE AUDIT LOG] Critical: Failed to save file locally: {str(local_err)}")
+        raise local_err
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'multistore_secret')
 
 # ==========================================
@@ -1459,16 +1527,19 @@ def add_product():
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-
         image = request.files.get('image')
         filename = None
 
         if image and image.filename != "":
-            filename = secure_filename(image.filename)
-            upload_path = app.config['UPLOAD_FOLDER']
-            if not os.path.exists(upload_path):
-                os.makedirs(upload_path)
-            image.save(os.path.join(upload_path, filename))
+            try:
+                filename, storage_type = upload_product_image_helper(image)
+            except ValueError as val_err:
+                flash(f"Upload Error: {str(val_err)} ❌")
+                return redirect(url_for('add_product'))
+            except Exception as upload_err:
+                flash("Upload failed due to a system error. ❌")
+                print(f"[IMAGE AUDIT ERROR] {str(upload_err)}")
+                filename = None
 
         try:
             product = Product(
@@ -1482,7 +1553,7 @@ def add_product():
             )
             db.session.add(product)
             db.session.commit()
-            flash("Product Added Successfully")
+            flash("Product Added Successfully ✅")
         except Exception as e:
             db.session.rollback()
             flash("Error adding product. Please check your inputs.")
@@ -1509,12 +1580,15 @@ def edit_product(product_id):
     if request.method == 'POST':
         image = request.files.get('image')
         if image and image.filename != "":
-            filename = secure_filename(image.filename)
-            upload_path = app.config['UPLOAD_FOLDER']
-            if not os.path.exists(upload_path):
-                os.makedirs(upload_path)
-            image.save(os.path.join(upload_path, filename))
-            product.image = filename
+            try:
+                filename, storage_type = upload_product_image_helper(image)
+                product.image = filename
+            except ValueError as val_err:
+                flash(f"Upload Error: {str(val_err)} ❌")
+                return redirect(url_for('edit_product', product_id=product.id))
+            except Exception as upload_err:
+                flash("Upload failed due to a system error. ❌")
+                print(f"[IMAGE AUDIT ERROR] {str(upload_err)}")
 
         try:
             product.name = request.form['name']

@@ -84,11 +84,9 @@
                 {% for r in recommendations %}
                     <div class="snap-product-card">
                         <div class="snap-img-box">
-                            {% if r.image %}
-                                <a href="{{ url_for('product_details', product_id=r.id) }}">
-                                    <img src="{{ url_for('static', filename='uploads/' + r.image) }}" alt="{{ r.name }}" class="snap-card-img">
-                                </a>
-                            {% endif %}
+                            <a href="{{ url_for('product_details', product_id=r.id) }}">
+                                <img src="{{ r.image_url }}" alt="{{ r.name }}" class="snap-card-img" onerror="console.warn('[IMAGE AUDIT] Failed to load recommended image:', this.src); this.onerror=null; this.src='/static/images/placeholder-product.svg';" data-actual-src="{{ r.image or '' }}">
+                            </a>
                             <span class="snap-card-rating">⭐️ {{ r.average_rating }}</span>
                         </div>
                         
@@ -181,11 +179,9 @@
                     {% for p in products %}
                         <div class="card product-marketplace-card">
                             <div class="product-marketplace-img-box">
-                                {% if p.image %}
-                                    <a href="{{ url_for('product_details', product_id=p.id) }}">
-                                        <img src="{{ url_for('static', filename='uploads/' + p.image) }}" alt="{{ p.name }}" class="card-img" style="margin-bottom:0;">
-                                    </a>
-                                {% endif %}
+                                <a href="{{ url_for('product_details', product_id=p.id) }}">
+                                    <img src="{{ p.image_url }}" alt="{{ p.name }}" class="card-img" style="margin-bottom:0;" onerror="console.warn('[IMAGE AUDIT] Failed to load store product image:', this.src); this.onerror=null; this.src='/static/images/placeholder-product.svg';" data-actual-src="{{ p.image or '' }}">
+                                </a>
                                 <span class="product-marketplace-rating">⭐️ {{ p.average_rating }}</span>
                             </div>
 

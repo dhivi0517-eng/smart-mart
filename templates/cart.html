@@ -156,9 +156,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="recommendation-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:1.5rem;">
         {% for r in recommendations %}
         <div class="recommendation-card glass-panel" style="padding:1.25rem !important; border-radius:18px;">
-            {% if r.image %}
-                <img src="{{ url_for('static', filename='uploads/' + r.image) }}" class="recommendation-card-img" style="height:120px; border-radius:10px;">
-            {% endif %}
+            <img src="{{ r.image_url }}" class="recommendation-card-img" style="height:120px; border-radius:10px;" onerror="console.warn('[IMAGE AUDIT] Failed to load recommended cart image:', this.src); this.onerror=null; this.src='/static/images/placeholder-product.svg';" data-actual-src="{{ r.image or '' }}">
             <h4 class="recommendation-card-title" style="font-size:0.95rem; margin: 0.5rem 0 0.25rem 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#fff;">{{ r.name }}</h4>
             <div class="recommendation-card-price" style="color:var(--primary); font-weight:700; font-size:1.15rem; margin-bottom:0.75rem;">₹ {{ r.price }}</div>
             

@@ -9,9 +9,7 @@
     <div class="recommendation-grid">
         {% for r in recommendations %}
         <div class="recommendation-card">
-            {% if r.image %}
-            <img src="{{ url_for('static', filename='uploads/' + r.image) }}" class="recommendation-card-img">
-            {% endif %}
+            <img src="{{ r.image_url }}" class="recommendation-card-img" onerror="console.warn('[IMAGE AUDIT] Failed to load recommended order image:', this.src); this.onerror=null; this.src='/static/images/placeholder-product.svg';" data-actual-src="{{ r.image or '' }}">
             <h4 class="recommendation-card-title">{{ r.name }}</h4>
             <div class="recommendation-card-price">₹ {{ r.price }}</div>
             <form action="{{ url_for('add_to_cart', product_id=r.id) }}" method="POST" class="recommendation-form-container" style="display:flex; gap:0.5rem;">
